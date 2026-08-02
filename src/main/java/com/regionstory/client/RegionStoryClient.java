@@ -19,8 +19,10 @@ import org.lwjgl.glfw.GLFW;
 
 public final class RegionStoryClient implements ClientModInitializer {
     private static final int HINT_CLICK_DURATION = 5;
-    private static final int HINT_KEY_WIDTH = 24;
-    private static final int HINT_KEY_GAP = 8;
+    private static final int HINT_KEY_WIDTH = 20;
+    private static final int HINT_KEY_GAP = 6;
+    private static final int HINT_BOX_HEIGHT = 18;
+    private static final float HINT_TEXT_SCALE = 0.84F;
     public static KeyBinding TALK_KEY;
     public static String currentRegion = "";
     public static String currentPrompt = "";
@@ -125,21 +127,22 @@ public final class RegionStoryClient implements ClientModInitializer {
                 RegionStoryUi.blend(0xFFF4F5F7, 0xFFFFF8BA, pulse),
                 RegionStoryUi.blend(0xFFFFFFFF, 0xFFFFF3A8, pulse));
         int keyTextWidth = RegionStoryUi.width(client.textRenderer, "F");
-        RegionStoryUi.drawText(drawContext, client.textRenderer, "F",
-                keyX + (HINT_KEY_WIDTH - keyTextWidth) / 2, keyY + 2,
+        RegionStoryUi.drawTextScaled(drawContext, client.textRenderer, "F", 0.9F,
+                keyX + (HINT_KEY_WIDTH - keyTextWidth * 0.9F) / 2.0F, keyY + 2.0F,
                 RegionStoryUi.blend(0xFF202833, 0xFF6B4A16, pulse));
 
         if (currentIcon.isBlank()) {
             RegionStoryUi.drawReferenceChatIcon(drawContext, panelX + 10, y + 2, 16);
         } else {
             RegionStoryUi.drawIcon(drawContext, client, currentIcon,
-                    panelX + 10, y + 1, 18,
+                    panelX + 8, y + 2, 15,
                     RegionStoryUi.blend(0xFFF6F8FB, 0xFFFFF3AE, pulse));
         }
         String label = hintLabel();
-        int labelY = y + Math.max(1, (boxHeight - client.textRenderer.fontHeight) / 2);
-        RegionStoryUi.drawText(drawContext, client.textRenderer, label,
-                panelX + 44, labelY,
+        int labelHeight = Math.max(1, Math.round(client.textRenderer.fontHeight * HINT_TEXT_SCALE));
+        int labelY = y + Math.max(1, (boxHeight - labelHeight) / 2);
+        RegionStoryUi.drawTextScaled(drawContext, client.textRenderer, label, HINT_TEXT_SCALE,
+                panelX + 36, labelY,
                 RegionStoryUi.blend(0xFFF6F2E7, 0xFFFFF7C5, pulse));
     }
 
@@ -167,10 +170,10 @@ public final class RegionStoryClient implements ClientModInitializer {
     private static int[] hintBounds(MinecraftClient client) {
         int width = client.getWindow().getScaledWidth();
         int height = client.getWindow().getScaledHeight();
-        int textWidth = RegionStoryUi.width(client.textRenderer, hintLabel());
-        int mainWidth = Math.max(180, textWidth + 68);
+        int textWidth = Math.round(RegionStoryUi.width(client.textRenderer, hintLabel()) * HINT_TEXT_SCALE);
+        int mainWidth = Math.max(156, textWidth + 54);
         int boxWidth = mainWidth + HINT_KEY_WIDTH + HINT_KEY_GAP;
-        int boxHeight = 20;
+        int boxHeight = HINT_BOX_HEIGHT;
         int panelX = MathHelper.clamp((int) (width * 0.6f),
                 16 + HINT_KEY_WIDTH + HINT_KEY_GAP,
                 Math.max(16 + HINT_KEY_WIDTH + HINT_KEY_GAP, width - mainWidth - 16));

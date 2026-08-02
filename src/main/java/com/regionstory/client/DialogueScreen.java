@@ -16,8 +16,9 @@ import java.util.List;
 public final class DialogueScreen extends Screen {
     private static final int OPTION_CLICK_DURATION = 5;
     private static final int HOVER_PULSE_PERIOD = 20;
-    private static final int OPTION_ICON_SIZE = 16;
+    private static final int OPTION_ICON_SIZE = 14;
     private static final int OPTION_LINE_HEIGHT = 8;
+    private static final float OPTION_TEXT_SCALE = 0.84F;
     private DialogueDefinition dialogue;
     private String entryId;
     private int transitionTicks;
@@ -110,11 +111,12 @@ public final class DialogueScreen extends Screen {
             int centerX = width / 2;
             int speakerY = bandTop + 44;
             drawCentered(ctx, entry.speaker(), centerX, speakerY, 0xFFFFD34F);
-            int lineY = speakerY + 18;
+            int lineY = speakerY + 10;
             if (entry.speakerTitle() != null && !entry.speakerTitle().isBlank()) {
-                drawTitleRule(ctx, centerX, lineY + 11, entry.speakerTitle());
+                drawTitleRule(ctx, centerX, lineY + 8, entry.speakerTitle());
                 drawCentered(ctx, entry.speakerTitle(), centerX, lineY, 0xFFFFD34F);
-                lineY += 23;
+                // 身份标签上移后，正文仍保持原来的视觉高度。
+                lineY += 31;
             }
             int continuationY = bandTop + bandHeight - 18;
             int bodyLineHeight = 13;
@@ -131,14 +133,16 @@ public final class DialogueScreen extends Screen {
             }
 
             if (!entry.options().isEmpty()) {
-                int optionX = MathHelper.clamp((int) (width * 0.6f), 220, width - 220);
-                int optionW = Math.max(220, Math.min(width - optionX - 34, Math.max(220, (int) (width * 0.34f))));
+                int optionX = MathHelper.clamp((int) (width * 0.6f), 190, width - 190);
+                int optionW = Math.max(190, Math.min(width - optionX - 28,
+                        Math.max(190, (int) (width * 0.29f))));
                 List<Integer> optionHeights = new ArrayList<>();
                 int optionTotalH = 0;
                 for (int i = 0; i < entry.options().size(); i++) {
-                    int textWidth = Math.max(80, optionW - 54);
+                    int textWidth = Math.max(80,
+                            Math.round((optionW - 46) / OPTION_TEXT_SCALE));
                     int lineCount = wrap(entry.options().get(i).text(), textWidth).size();
-                    int optionH = Math.max(20, lineCount * OPTION_LINE_HEIGHT + 4);
+                    int optionH = Math.max(18, lineCount * OPTION_LINE_HEIGHT + 3);
                     optionHeights.add(optionH);
                     optionTotalH += optionH;
                 }
@@ -178,13 +182,15 @@ public final class DialogueScreen extends Screen {
                         RegionStoryUi.drawDialoguePanel(ctx, optionX, optionY, optionW, optionH);
                     }
                     RegionStoryUi.drawIcon(ctx, client, entry.options().get(i).icon(),
-                            optionX + 8, optionY + (optionH - OPTION_ICON_SIZE) / 2, OPTION_ICON_SIZE,
+                            optionX + 7, optionY + (optionH - OPTION_ICON_SIZE) / 2, OPTION_ICON_SIZE,
                             RegionStoryUi.blend(0xFFF8FAFC, 0xFFFFF5B8, pulse));
-                    List<String> optionLines = wrap(entry.options().get(i).text(), optionW - 54);
+                    List<String> optionLines = wrap(entry.options().get(i).text(),
+                            Math.max(80, Math.round((optionW - 46) / OPTION_TEXT_SCALE)));
                     int textBlockHeight = optionLines.size() * OPTION_LINE_HEIGHT;
                     int textY = optionY + (optionH - textBlockHeight) / 2 + 1;
                     for (String line : optionLines) {
-                        RegionStoryUi.drawText(ctx, textRenderer, line, optionX + 40, textY,
+                        RegionStoryUi.drawTextScaled(ctx, textRenderer, line, OPTION_TEXT_SCALE,
+                                optionX + 34, textY,
                                 RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8, 0xFFFFF8C8, pulse));
                         textY += OPTION_LINE_HEIGHT;
                     }

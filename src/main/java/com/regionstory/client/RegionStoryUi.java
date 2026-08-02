@@ -39,6 +39,17 @@ public final class RegionStoryUi {
         context.drawTextWithShadow(renderer, text(value), x, y, color);
     }
 
+    /** 按 UI 局部比例绘制文字，避免为了缩小选项和提示而影响底部主对话字体。 */
+    public static void drawTextScaled(DrawContext context, TextRenderer renderer,
+                                      String value, float scale, float x, float y, int color) {
+        if (scale <= 0.0F) return;
+        context.getMatrices().pushMatrix();
+        context.getMatrices().translate(x, y);
+        context.getMatrices().scale(scale, scale);
+        context.drawTextWithShadow(renderer, text(value), 0, 0, color);
+        context.getMatrices().popMatrix();
+    }
+
     /** 将点击动画的进度映射为 0 -> 1 -> 0。 */
     public static float clickPulse(int ticks, int duration) {
         if (ticks <= 0 || duration <= 0) return 0.0F;
