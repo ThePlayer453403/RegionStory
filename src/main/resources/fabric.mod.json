@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "regionstory",
+  "version": "${version}",
+  "name": "RegionStory",
+  "description": "Data-driven Genshin-style regional dialogue for Fabric.",
+  "authors": ["RegionStory contributors"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.regionstory.RegionStoryMod"],
+    "client": ["com.regionstory.client.RegionStoryClient"]
+  },
+  "mixins": [
+    "regionstory.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

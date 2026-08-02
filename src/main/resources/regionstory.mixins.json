@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "com.regionstory.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CameraMixin",
+    "CameraAccessor",
+    "MouseMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

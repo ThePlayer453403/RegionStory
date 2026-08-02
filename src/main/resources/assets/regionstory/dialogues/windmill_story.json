@@ -1,0 +1,10 @@
+{
+  "id": "windmill_story",
+  "start": "greet",
+  "entries": [
+    {"id":"greet","speaker":"风车守望者","text":"风从山谷吹来，风车便会记住每一个旅人的愿望。","options":[{"text":"我想听听这个故事。","next":"story","commands":[]},{"text":"我只是路过。","next":"pass","commands":[]}]},
+    {"id":"story","speaker":"风车守望者","text":"很久以前，人们把第一盏灯挂在这里。","next":"end","commands":[]},
+    {"id":"pass","speaker":"风车守望者","text":"愿风指引你的方向。","next":"end","commands":[]},
+    {"id":"end","speaker":"风车守望者","text":"再会，旅行者。","endDialog":true,"commands":[]}
+  ]
+}

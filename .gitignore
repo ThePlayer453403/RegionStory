@@ -1,0 +1,25 @@
+# Gradle and Fabric Loom caches
+.gradle/
+build/
+
+# Development game data and generated logs
+run/
+crash-reports/
+crash-report-inspect-*/
+
+# IDE and operating-system files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local runtime/config files
+config/
+*.log
+
+# Temporary work files and generated previews
+work/
+*.zip
+*.mp4
+*.tmp
