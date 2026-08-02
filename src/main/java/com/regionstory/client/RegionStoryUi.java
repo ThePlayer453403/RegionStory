@@ -192,7 +192,7 @@ public final class RegionStoryUi {
 
         String symbol = key.startsWith("regionstory:icon/")
                 ? key.substring("regionstory:icon/".length()) : key;
-        int slot = Math.max(18, size);
+        int slot = Math.max(16, size);
         int cx = x + slot / 2;
         int cy = y + slot / 2;
         fillCircle(context, cx, cy, slot / 2 - 1, 0x66333E4D);
