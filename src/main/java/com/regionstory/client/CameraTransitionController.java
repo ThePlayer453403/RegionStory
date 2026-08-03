@@ -1,30 +1,24 @@
 package com.regionstory.client;
 
+import com.regionstory.mixin.CameraAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.Perspective;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
-import com.regionstory.mixin.CameraAccessor;
+import net.minecraft.util.math.Vec3d;
 
-/**
- * 轻量电影镜头控制器：负责转场进度和目标镜头位置，Camera Mixin 负责最终覆盖渲染镜头。
- */
+/** Camera interpolation used while a dialogue screen owns the interaction. */
 public final class CameraTransitionController {
     private enum Mode { IDLE, ENTERING, DIALOGUE, EXITING }
+
     private static Mode mode = Mode.IDLE;
     private static int ticks;
     private static Perspective previousPerspective = Perspective.FIRST_PERSON;
-    private static int previousBluriness;
-    private static boolean blurCaptured;
 
     public static void beginEnter(MinecraftClient client) {
         if (mode == Mode.IDLE) {
             previousPerspective = client.options.getPerspective();
-            previousBluriness = client.options.getMenuBackgroundBlurrinessValue();
-            blurCaptured = true;
-            // 对话期间保持清晰世界背景；结束时恢复玩家原来的设置。
-            client.options.getMenuBackgroundBlurriness().setValue(0);
         }
         client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
         ticks = 0;
@@ -32,6 +26,7 @@ public final class CameraTransitionController {
     }
 
     public static void beginExit(MinecraftClient client) {
+        if (mode == Mode.IDLE) return;
         ticks = 0;
         mode = Mode.EXITING;
         client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
@@ -40,47 +35,63 @@ public final class CameraTransitionController {
     public static void tick(MinecraftClient client) {
         if (mode == Mode.IDLE) return;
         ticks++;
-        if (mode == Mode.ENTERING && ticks >= RegionStoryConfig.enterDuration) mode = Mode.DIALOGUE;
+        if (mode == Mode.ENTERING && ticks >= RegionStoryConfig.enterDuration) {
+            mode = Mode.DIALOGUE;
+        }
         if (mode == Mode.EXITING && ticks >= RegionStoryConfig.exitDuration) {
             client.options.setPerspective(previousPerspective);
-            restoreBlur(client);
             mode = Mode.IDLE;
         }
     }
 
-    public static boolean active() { return mode != Mode.IDLE; }
+    public static boolean active() {
+        return mode != Mode.IDLE;
+    }
+
+    public static boolean dialogueActive() {
+        return mode == Mode.ENTERING || mode == Mode.DIALOGUE || mode == Mode.EXITING;
+    }
 
     public static void reset(MinecraftClient client) {
         client.options.setPerspective(previousPerspective);
-        restoreBlur(client);
         mode = Mode.IDLE;
         ticks = 0;
     }
 
-    private static void restoreBlur(MinecraftClient client) {
-        if (blurCaptured) {
-            client.options.getMenuBackgroundBlurriness().setValue(previousBluriness);
-            blurCaptured = false;
-        }
-    }
-
     public static void apply(Camera camera, Entity focusedEntity) {
         if (!active() || focusedEntity == null) return;
+
+        // 使用 smoothstep 让进入和退出的速度在首尾自然收敛，避免镜头突然加速。
         double progress = mode == Mode.EXITING
                 ? 1.0D - MathHelper.clamp(ticks / (double) RegionStoryConfig.exitDuration, 0.0D, 1.0D)
                 : MathHelper.clamp(ticks / (double) RegionStoryConfig.enterDuration, 0.0D, 1.0D);
         double eased = progress * progress * (3.0D - 2.0D * progress);
         double distance = RegionStoryConfig.thirdPersonDistance * eased;
-        // yawOffset 以“玩家朝向”为 0；负值表示从玩家右后方观察。
-        double angle = Math.toRadians(focusedEntity.getYaw() + RegionStoryConfig.yawOffset);
-        double x = focusedEntity.getX() + Math.sin(angle) * distance;
-        double z = focusedEntity.getZ() - Math.cos(angle) * distance;
-        double y = focusedEntity.getY() + focusedEntity.getStandingEyeHeight() + RegionStoryConfig.heightOffset * eased;
+        // 从玩家的水平朝向构建局部坐标：正 yawOffset 永远是“玩家右后方”，
+        // 不再依赖世界坐标角度，从而避免镜头跑到人物正前方。
+        Vec3d forward = focusedEntity.getRotationVec(1.0F);
+        Vec3d horizontalForward = new Vec3d(forward.x, 0.0D, forward.z).normalize();
+        if (horizontalForward.lengthSquared() < 1.0E-6D) {
+            double yaw = Math.toRadians(focusedEntity.getYaw());
+            horizontalForward = new Vec3d(-Math.sin(yaw), 0.0D, Math.cos(yaw));
+        }
+        Vec3d backward = horizontalForward.negate();
+        Vec3d right = new Vec3d(-horizontalForward.z, 0.0D, horizontalForward.x);
+        double offset = Math.toRadians(RegionStoryConfig.yawOffset * eased);
+        Vec3d cameraOffset = backward.multiply(Math.cos(offset) * distance)
+                .add(right.multiply(Math.sin(offset) * distance));
+        double x = focusedEntity.getX() + cameraOffset.x;
+        double z = focusedEntity.getZ() + cameraOffset.z;
+        double y = focusedEntity.getY() + focusedEntity.getStandingEyeHeight()
+                + RegionStoryConfig.heightOffset * eased;
+
         CameraAccessor accessor = (CameraAccessor) (Object) camera;
         accessor.regionstory$setPos(x, y, z);
-        accessor.regionstory$setRotation(focusedEntity.getYaw() + RegionStoryConfig.yawOffset,
+        accessor.regionstory$setRotation(
+                focusedEntity.getYaw() - RegionStoryConfig.yawOffset * (float) eased,
                 RegionStoryConfig.pitchOffset * (float) eased);
     }
 
-    private CameraTransitionController() {}
+    private CameraTransitionController() {
+    }
 }

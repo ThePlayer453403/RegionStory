@@ -1,4 +1,5 @@
 {
   "key.regionstory.talk": "Talk",
-  "category.regionstory": "RegionStory"
+  "category.regionstory": "RegionStory",
+  "key.categories.regionstory.region_hint": "RegionStory"
 }

@@ -33,7 +33,7 @@ jobs:
 
       - name: Build JAR
         shell: bash
-        run: ./gradlew build --no-daemon
+        run: ./gradlew clean build --no-daemon --stacktrace
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -52,4 +52,6 @@ jobs:
         run: |
           jar_file="$(find build/libs -maxdepth 1 -type f -name 'regionstory-*.jar' ! -name '*-sources.jar' -print -quit)"
           test -n "$jar_file"
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes
           gh release upload "$GITHUB_REF_NAME" "$jar_file" --repo "$GITHUB_REPOSITORY" --clobber

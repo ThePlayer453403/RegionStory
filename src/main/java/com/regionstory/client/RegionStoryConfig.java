@@ -9,45 +9,80 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** 客户端镜头参数，使用轻量 JSON 配置以保持仅依赖 Fabric API。 */
+/** Lightweight client JSON configuration. */
 public final class RegionStoryConfig {
-    public static int enterDuration = 20;
-    public static int exitDuration = 20;
+    private static final float DEFAULT_RIGHT_REAR_YAW_OFFSET = 18.0F;
+    private static final float MAX_RIGHT_REAR_YAW_OFFSET = 75.0F;
+
+    public static int enterDuration = 12;
+    public static int exitDuration = 12;
     public static double thirdPersonDistance = 4.5D;
     public static double heightOffset = 0.6D;
-    /** 相对玩家朝向的镜头偏移；-15 度为偏右的后视角。 */
-    public static float yawOffset = -15.0F;
+    /** Positive values place the camera on the player's right rear side. */
+    public static float yawOffset = DEFAULT_RIGHT_REAR_YAW_OFFSET;
     public static float pitchOffset = 8.0F;
 
     public static void load() {
+        // 配置损坏时保留默认值；数值范围也在读取阶段统一限制，避免镜头参数导致异常。
         Path path = FabricLoader.getInstance().getConfigDir().resolve("regionstory.json");
         try {
+            boolean migratedLegacyCameraAngle = false;
             if (Files.exists(path)) {
                 JsonObject json = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
-                enterDuration = Math.max(1, json.has("enterDuration") ? json.get("enterDuration").getAsInt() : enterDuration);
-                exitDuration = Math.max(1, json.has("exitDuration") ? json.get("exitDuration").getAsInt() : exitDuration);
-                thirdPersonDistance = Math.max(0.5D, json.has("thirdPersonDistance") ? json.get("thirdPersonDistance").getAsDouble() : thirdPersonDistance);
-                heightOffset = json.has("heightOffset") ? json.get("heightOffset").getAsDouble() : heightOffset;
-                yawOffset = json.has("yawOffset") ? json.get("yawOffset").getAsFloat() : yawOffset;
-                // 兼容旧版默认值：180 度是前视角，迁移为新的右后方默认角度。
-                if (yawOffset == 180.0F) yawOffset = -15.0F;
-                pitchOffset = json.has("pitchOffset") ? json.get("pitchOffset").getAsFloat() : pitchOffset;
+                enterDuration = clampInt(json, "enterDuration", enterDuration, 1, 200);
+                exitDuration = clampInt(json, "exitDuration", exitDuration, 1, 200);
+                thirdPersonDistance = clampDouble(json, "thirdPersonDistance",
+                        thirdPersonDistance, 0.5D, 16.0D);
+                heightOffset = clampDouble(json, "heightOffset", heightOffset, -4.0D, 4.0D);
+                // 旧版将 180 度用于前视镜头。新版仅接受后视角两侧的小角度偏移，
+                // 因此把超出范围的历史值迁移到稳定的右后视默认值。
+                double configuredYawOffset = json.has("yawOffset")
+                        ? json.get("yawOffset").getAsDouble() : yawOffset;
+                if (Math.abs(configuredYawOffset) > MAX_RIGHT_REAR_YAW_OFFSET) {
+                    yawOffset = DEFAULT_RIGHT_REAR_YAW_OFFSET;
+                    migratedLegacyCameraAngle = true;
+                } else {
+                    yawOffset = (float) configuredYawOffset;
+                }
+                pitchOffset = (float) clampDouble(json, "pitchOffset", pitchOffset, -60.0D, 60.0D);
+                if (migratedLegacyCameraAngle) {
+                    Files.writeString(path,
+                            new GsonBuilder().setPrettyPrinting().create().toJson(snapshot()),
+                            StandardCharsets.UTF_8);
+                }
             } else {
                 Files.createDirectories(path.getParent());
-                Files.writeString(path, new GsonBuilder().setPrettyPrinting().create().toJson(snapshot()), StandardCharsets.UTF_8);
+                Files.writeString(path,
+                        new GsonBuilder().setPrettyPrinting().create().toJson(snapshot()),
+                        StandardCharsets.UTF_8);
             }
         } catch (Exception ignored) {
-            // 配置损坏时使用默认值，避免阻塞客户端启动。
+            // Invalid config uses the defaults so the client can still start.
         }
     }
 
     private static JsonObject snapshot() {
         JsonObject result = new JsonObject();
-        result.addProperty("enterDuration", enterDuration); result.addProperty("exitDuration", exitDuration);
-        result.addProperty("thirdPersonDistance", thirdPersonDistance); result.addProperty("heightOffset", heightOffset);
-        result.addProperty("yawOffset", yawOffset); result.addProperty("pitchOffset", pitchOffset);
+        result.addProperty("enterDuration", enterDuration);
+        result.addProperty("exitDuration", exitDuration);
+        result.addProperty("thirdPersonDistance", thirdPersonDistance);
+        result.addProperty("heightOffset", heightOffset);
+        result.addProperty("yawOffset", yawOffset);
+        result.addProperty("pitchOffset", pitchOffset);
         return result;
     }
 
-    private RegionStoryConfig() {}
+    private static int clampInt(JsonObject json, String key, int fallback, int min, int max) {
+        int value = json.has(key) ? json.get(key).getAsInt() : fallback;
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static double clampDouble(JsonObject json, String key, double fallback,
+                                      double min, double max) {
+        double value = json.has(key) ? json.get(key).getAsDouble() : fallback;
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private RegionStoryConfig() {
+    }
 }

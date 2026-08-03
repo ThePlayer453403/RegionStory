@@ -131,7 +131,7 @@ public final class RegionStoryMod implements ModInitializer {
                 if (region != null && region.contains(player.getEntityWorld().getRegistryKey().getValue(), player.getX(), player.getY(), player.getZ())) {
                     var dialogue = DIALOGUES.get(region.dialogue);
                     if (dialogue == null || dialogue.entry(dialogue.start) == null) return;
-                    DialogueSession session = new DialogueSession(dialogue.id, dialogue.start);
+                    DialogueSession session = new DialogueSession(region.id, dialogue.id, dialogue.start);
                     SESSIONS.put(player.getUuid(), session);
                     enterEntry(player, dialogue, session);
                 }
@@ -188,6 +188,7 @@ public final class RegionStoryMod implements ModInitializer {
     private static void advanceDialogue(ServerPlayerEntity player, AdvanceDialoguePayload payload) {
         DialogueSession session = SESSIONS.get(player.getUuid());
         if (session == null || !session.dialogueId.equals(payload.dialogueId()) || !session.entryId.equals(payload.entryId())) return;
+        if (!sessionStillInRegion(player, session)) return;
         DialogueDefinition dialogue = DIALOGUES.get(session.dialogueId);
         DialogueDefinition.Entry entry = dialogue == null ? null : dialogue.entry(session.entryId);
         if (entry == null || !entry.options().isEmpty()) return;
@@ -198,12 +199,13 @@ public final class RegionStoryMod implements ModInitializer {
     private static void chooseOption(ServerPlayerEntity player, SelectOptionPayload payload) {
         DialogueSession session = SESSIONS.get(player.getUuid());
         if (session == null || !session.dialogueId.equals(payload.dialogueId()) || !session.entryId.equals(payload.entryId())) return;
+        if (!sessionStillInRegion(player, session)) return;
         DialogueDefinition dialogue = DIALOGUES.get(session.dialogueId);
         DialogueDefinition.Entry entry = dialogue == null ? null : dialogue.entry(session.entryId);
         if (entry == null || payload.optionIndex() < 0 || payload.optionIndex() >= entry.options().size()) return;
         DialogueDefinition.Option option = entry.options().get(payload.optionIndex());
         executeCommands(player, option.commands());
-        if (option.next().isBlank()) closeDialogue(player, session.dialogueId);
+        if (option.endDialog() || option.next().isBlank()) closeDialogue(player, session.dialogueId);
         else { session.entryId = option.next(); enterEntry(player, dialogue, session); }
     }
 
@@ -241,6 +243,16 @@ public final class RegionStoryMod implements ModInitializer {
         if (session == null || !session.dialogueId.equals(dialogueId)) return;
         SESSIONS.remove(player.getUuid());
         ServerPlayNetworking.send(player, new CloseDialoguePayload(dialogueId));
+    }
+
+    private static boolean sessionStillInRegion(ServerPlayerEntity player, DialogueSession session) {
+        RegionDefinition region = REGIONS.get(session.regionId);
+        if (region != null && region.contains(player.getEntityWorld().getRegistryKey().getValue(),
+                player.getX(), player.getY(), player.getZ())) {
+            return true;
+        }
+        closeDialogue(player, session.dialogueId);
+        return false;
     }
 
     public RegionStoryMod() {}

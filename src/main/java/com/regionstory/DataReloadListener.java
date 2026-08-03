@@ -11,8 +11,9 @@ public final class DataReloadListener implements SimpleSynchronousResourceReload
 
     @Override
     public void reload(ResourceManager manager) {
-        RegionStoryMod.REGIONS.reload(manager);
         RegionStoryMod.DIALOGUES.reload(manager);
+        RegionStoryMod.REGIONS.reload(manager);
+        RegionStoryMod.REGIONS.validateDialogueReferences(RegionStoryMod.DIALOGUES);
         RegionStoryMod.resetSessionsAfterReload();
     }
 }

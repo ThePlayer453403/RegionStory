@@ -6,5 +6,6 @@
   "radius": 8,
   "prompt": "按 F 与派蒙对话",
   "icon": "regionstory:icon/star",
-  "dialogue": "starfall_intro"
+  "dialogue": "starfall_intro",
+  "priority": 10
 }
