@@ -30,6 +30,8 @@ public final class DialogueScreen extends Screen {
     private int hoveredOption = -1;
     private int hoverPulseTicks;
     private final List<int[]> optionRects = new ArrayList<>();
+    private boolean typingAnimation = true;
+    private long typingStartTime;
 
     public DialogueScreen(DialogueDefinition dialogue, String entryId) {
         super(Text.literal("RegionStory"));
@@ -44,6 +46,7 @@ public final class DialogueScreen extends Screen {
             transitionStarted = true;
         }
         introTicks = 0;
+        typingStartTime = System.currentTimeMillis();
     }
 
     @Override
@@ -59,7 +62,9 @@ public final class DialogueScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
-        introTicks = Math.min(RegionStoryUiMetrics.INTRO_TICKS, introTicks + 1);
+        if (!typingAnimation) {
+            introTicks = Math.min(RegionStoryUiMetrics.INTRO_TICKS, introTicks + 1);
+        }
         if (hoveredOption >= 0) {
             hoverPulseTicks = (hoverPulseTicks + 1) % RegionStoryUiMetrics.HOVER_PULSE_PERIOD;
         } else {
@@ -77,6 +82,8 @@ public final class DialogueScreen extends Screen {
     }
 
     public void applyEntry(DialogueDefinition dialogue, String entryId) {
+        typingAnimation = true;
+        typingStartTime = System.currentTimeMillis();
         if (dialogue != null && dialogue.entry(entryId) != null) {
             this.dialogue = dialogue;
             this.entryId = entryId;
@@ -122,8 +129,6 @@ public final class DialogueScreen extends Screen {
                 RegionStoryUiMetrics.DIALOGUE_BASE_HEIGHT,
                 RegionStoryUiMetrics.DIALOGUE_MAX_HEIGHT);
         int bandTop = height - bandHeight;
-        float intro = MathHelper.clamp(introTicks
-                / (float) RegionStoryUiMetrics.INTRO_TICKS, 0.0F, 1.0F);
         context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/dialogue_background.png"), 0, height - bandHeight, width, height, 0, 1, 0, 1);
         int centerX = width / 2;
         int speakerY = bandTop + 12;
@@ -139,107 +144,124 @@ public final class DialogueScreen extends Screen {
         int continuationY = bandTop + bandHeight - 15;
         int bodyHeight = dialogueLines.size() * RegionStoryUiMetrics.BODY_LINE_HEIGHT;
         int bodyY = Math.min(lineY + 2, continuationY - bodyHeight - 20);
+
+        int typingCount = (int) (System.currentTimeMillis() - typingStartTime) / 40;
+
         for (String line : dialogueLines) {
-            drawCentered(context, line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
+            if (typingCount >= line.length()) {
+                drawCentered(context, line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
+            } else if (0 < typingCount) {
+                drawCentered(context, line.substring(0, typingCount), line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
+            }
+            typingCount -= line.length();
             bodyY += RegionStoryUiMetrics.BODY_LINE_HEIGHT;
         }
-
-        optionRects.clear();
-        if (entry.options().isEmpty()) {
-            RegionStoryUi.drawHoverDiamond(context, centerX, continuationY, 0xFFFFC52E);
-            return;
+        if (typingCount >= 0) {
+            typingAnimation = false;
         }
-
-        int optionX = MathHelper.clamp(
-                Math.round(width * RegionStoryUiMetrics.OPTION_ANCHOR_X),
-                RegionStoryUiMetrics.PANEL_MARGIN,
-                Math.max(RegionStoryUiMetrics.PANEL_MARGIN,
-                        width - RegionStoryUiMetrics.PANEL_MARGIN - 1)) + Math.round((1.0F - intro) * 12.0F);
-        int availableOptionWidth = Math.max(1,
-                width - optionX - RegionStoryUiMetrics.PANEL_MARGIN);
-        int optionW = Math.min(availableOptionWidth,
-                Math.max(RegionStoryUiMetrics.OPTION_MIN_WIDTH, Math.round(width * 0.30F)));
-        List<Integer> optionHeights = new ArrayList<>();
-        int optionTotalHeight = 0;
-        int optionTextWidth = Math.max(32, Math.round(
-                Math.max(32, optionW - 42) / RegionStoryUiMetrics.OPTION_TEXT_SCALE));
-        for (DialogueDefinition.Option option : entry.options()) {
-            int lines = Math.max(1, wrap(option.text(), optionTextWidth).size());
-            int optionHeight = Math.max(RegionStoryUiMetrics.OPTION_HEIGHT,
-                    lines * RegionStoryUiMetrics.OPTION_LINE_HEIGHT + 6);
-            optionHeights.add(optionHeight);
-            optionTotalHeight += optionHeight;
-        }
-        optionTotalHeight += Math.max(0,
-                (entry.options().size() - 1) * RegionStoryUiMetrics.OPTION_GAP);
-
-        int optionY = Math.max(0, bandTop - optionTotalHeight);
-
-        int optionStartY = optionY;
-        int activeHover = -1;
-        for (int i = 0; i < entry.options().size(); i++) {
-            int optionHeight = optionHeights.get(i);
-            if (mouseX >= optionX && mouseX <= optionX + optionW
-                    && mouseY >= optionY && mouseY <= optionY + optionHeight) {
-                activeHover = i;
-            }
-            optionY += optionHeight + RegionStoryUiMetrics.OPTION_GAP;
-        }
-        if (activeHover != hoveredOption) {
-            hoveredOption = activeHover;
-            hoverPulseTicks = 0;
-        }
-
-        optionY = optionStartY;
-        for (int i = 0; i < entry.options().size(); i++) {
-            DialogueDefinition.Option option = entry.options().get(i);
-            int optionHeight = optionHeights.get(i);
-            optionRects.add(new int[]{optionX, optionY, optionW, optionHeight});
-
-            boolean hover = i == hoveredOption;
-            // 从亮态开始，经暗态再回到亮态，循环提示当前可选项。
-            float hoverPulse = hover
-                    ? 0.25F + 0.75F * (0.5F + 0.5F * (float) Math.cos(
-                    (hoverPulseTicks / (float) RegionStoryUiMetrics.HOVER_PULSE_PERIOD)
-                            * Math.PI * 2.0))
-                    : 0.0F;
-            float clickPulse = i == selectedOption
-                    ? RegionStoryUi.clickPulse(selectedOptionTicks,
-                    RegionStoryUiMetrics.OPTION_CLICK_FEEDBACK_TICKS) : 0.0F;
-
-            RegionStoryUi.drawOpenFadePanel(context, optionX, optionY, optionW, optionHeight, hover);
-
-            if (hover) {
-                RegionStoryUi.drawTextScaled(context, textRenderer, "▶", 0.7f, 1f, (float) (optionX - 10 + Math.sin(System.currentTimeMillis() / 200d)), optionY + optionHeight / 3f, 0xffffffff);
+        if (!typingAnimation) {
+            float intro = MathHelper.clamp(introTicks / (float) RegionStoryUiMetrics.INTRO_TICKS, 0.0F, 1.0F);
+            optionRects.clear();
+            if (entry.options().isEmpty()) {
+                RegionStoryUi.drawHoverDiamond(context, centerX, continuationY, 0xFFFFC52E);
+                return;
             }
 
-            RegionStoryUi.drawIcon(context, client, option.icon(),
-                    optionX + 7, optionY + (optionHeight - RegionStoryUiMetrics.OPTION_ICON_SIZE) / 2,
-                    RegionStoryUiMetrics.OPTION_ICON_SIZE,
-                    RegionStoryUi.blend(0xFFF8FAFC, 0xFFFFF5B8,
-                            Math.max(hoverPulse, clickPulse)));
-
-            List<String> optionLines = wrap(option.text(), optionTextWidth);
-            int textLineHeight = Math.max(1, Math.round(
-                    textRenderer.fontHeight * RegionStoryUiMetrics.OPTION_TEXT_SCALE));
-            int textBlockHeight = optionLines.size() * textLineHeight;
-            float textY = optionY + (optionHeight - textBlockHeight) / 2f;
-            for (String line : optionLines) {
-                RegionStoryUi.drawTextScaled(context, textRenderer, line,
-                        RegionStoryUiMetrics.OPTION_TEXT_SCALE,
-                        optionX + 24, textY,
-                        RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8,
-                                0xFFFFF8C8, clickPulse));
-                textY += textLineHeight;
+            int optionX = MathHelper.clamp(
+                    Math.round(width * RegionStoryUiMetrics.OPTION_ANCHOR_X),
+                    RegionStoryUiMetrics.PANEL_MARGIN,
+                    Math.max(RegionStoryUiMetrics.PANEL_MARGIN,
+                            width - RegionStoryUiMetrics.PANEL_MARGIN - 1)) + Math.round((1.0F - intro) * 12.0F);
+            int availableOptionWidth = Math.max(1,
+                    width - optionX - RegionStoryUiMetrics.PANEL_MARGIN);
+            int optionW = Math.min(availableOptionWidth,
+                    Math.max(RegionStoryUiMetrics.OPTION_MIN_WIDTH, Math.round(width * 0.30F)));
+            List<Integer> optionHeights = new ArrayList<>();
+            int optionTotalHeight = 0;
+            int optionTextWidth = Math.max(32, Math.round(
+                    Math.max(32, optionW - 42) / RegionStoryUiMetrics.OPTION_TEXT_SCALE));
+            for (DialogueDefinition.Option option : entry.options()) {
+                int lines = Math.max(1, wrap(option.text(), optionTextWidth).size());
+                int optionHeight = Math.max(RegionStoryUiMetrics.OPTION_HEIGHT,
+                        lines * RegionStoryUiMetrics.OPTION_LINE_HEIGHT + 6);
+                optionHeights.add(optionHeight);
+                optionTotalHeight += optionHeight;
             }
-            optionY += optionHeight + RegionStoryUiMetrics.OPTION_GAP;
+            optionTotalHeight += Math.max(0,
+                    (entry.options().size() - 1) * RegionStoryUiMetrics.OPTION_GAP);
+
+            int optionY = Math.max(0, bandTop - optionTotalHeight);
+
+            int optionStartY = optionY;
+            int activeHover = -1;
+            for (int i = 0; i < entry.options().size(); i++) {
+                int optionHeight = optionHeights.get(i);
+                if (mouseX >= optionX && mouseX <= optionX + optionW
+                        && mouseY >= optionY && mouseY <= optionY + optionHeight) {
+                    activeHover = i;
+                }
+                optionY += optionHeight + RegionStoryUiMetrics.OPTION_GAP;
+            }
+            if (activeHover != hoveredOption) {
+                hoveredOption = activeHover;
+                hoverPulseTicks = 0;
+            }
+
+            optionY = optionStartY;
+            for (int i = 0; i < entry.options().size(); i++) {
+                DialogueDefinition.Option option = entry.options().get(i);
+                int optionHeight = optionHeights.get(i);
+                optionRects.add(new int[]{optionX, optionY, optionW, optionHeight});
+
+                boolean hover = i == hoveredOption;
+                // 从亮态开始，经暗态再回到亮态，循环提示当前可选项。
+                float hoverPulse = hover
+                        ? 0.25F + 0.75F * (0.5F + 0.5F * (float) Math.cos(
+                        (hoverPulseTicks / (float) RegionStoryUiMetrics.HOVER_PULSE_PERIOD)
+                                * Math.PI * 2.0))
+                        : 0.0F;
+                float clickPulse = i == selectedOption
+                        ? RegionStoryUi.clickPulse(selectedOptionTicks,
+                        RegionStoryUiMetrics.OPTION_CLICK_FEEDBACK_TICKS) : 0.0F;
+
+                RegionStoryUi.drawOpenFadePanel(context, optionX, optionY, optionW, optionHeight, hover);
+
+                if (hover) {
+                    RegionStoryUi.drawTextScaled(context, textRenderer, "▶", 0.7f, 1f, (float) (optionX - 10 + Math.sin(System.currentTimeMillis() / 200d)), optionY + optionHeight / 3f, 0xffffffff);
+                }
+
+                RegionStoryUi.drawIcon(context, client, option.icon(),
+                        optionX + 7, optionY + (optionHeight - RegionStoryUiMetrics.OPTION_ICON_SIZE) / 2,
+                        RegionStoryUiMetrics.OPTION_ICON_SIZE,
+                        RegionStoryUi.blend(0xFFF8FAFC, 0xFFFFF5B8,
+                                Math.max(hoverPulse, clickPulse)));
+
+                List<String> optionLines = wrap(option.text(), optionTextWidth);
+                int textLineHeight = Math.max(1, Math.round(
+                        textRenderer.fontHeight * RegionStoryUiMetrics.OPTION_TEXT_SCALE));
+                int textBlockHeight = optionLines.size() * textLineHeight;
+                float textY = optionY + (optionHeight - textBlockHeight) / 2f;
+                for (String line : optionLines) {
+                    RegionStoryUi.drawTextScaled(context, textRenderer, line,
+                            RegionStoryUiMetrics.OPTION_TEXT_SCALE,
+                            optionX + 24, textY,
+                            RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8,
+                                    0xFFFFF8C8, clickPulse));
+                    textY += textLineHeight;
+                }
+                optionY += optionHeight + RegionStoryUiMetrics.OPTION_GAP;
+            }
         }
     }
 
-    private void drawCentered(DrawContext context, String value, int centerX, int y, int color, float scale) {
-        int textWidth = (int) (RegionStoryUi.width(textRenderer, value) * scale);
+    private void drawCentered(DrawContext context, String value, String fullValue, int centerX, int y, int color, float scale) {
+        int textWidth = (int) (RegionStoryUi.width(textRenderer, fullValue) * scale);
         RegionStoryUi.drawTextScaled(context, textRenderer, value, scale,
                 centerX - textWidth / 2f, y, color);
+    }
+
+    private void drawCentered(DrawContext context, String value, int centerX, int y, int color, float scale) {
+        drawCentered(context, value, value, centerX, y, color, scale);
     }
 
     private void drawCentered(DrawContext context, String value, int centerX, int y, int color) {
@@ -286,6 +308,12 @@ public final class DialogueScreen extends Screen {
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
         if (selectedOption >= 0) return true;
+
+        if (typingAnimation) {
+            typingAnimation = false;
+            return true;
+        }
+
         for (int i = 0; i < optionRects.size(); i++) {
             int[] rect = optionRects.get(i);
             if (click.x() >= rect[0] && click.x() <= rect[0] + rect[2]
@@ -314,12 +342,21 @@ public final class DialogueScreen extends Screen {
             ClientPlayNetworkingBridge.close(dialogue.id);
             return true;
         }
-        DialogueDefinition.Entry entry = dialogue.entry(entryId);
-        if (entry != null && entry.options().isEmpty()) {
-            ClientPlayNetworkingBridge.advance(dialogue.id, entryId);
-            if (MinecraftClient.getInstance().player != null) {
-                MinecraftClient.getInstance().player.playSound(SoundEvents.ENTITY_ITEM_PICKUP);
+        if (input.getKeycode() == 32 || input.getKeycode() == 70) {  // F或空格
+
+            if (typingAnimation) {
+                typingAnimation = false;
+                return true;
             }
+
+            DialogueDefinition.Entry entry = dialogue.entry(entryId);
+            if (entry != null && entry.options().isEmpty()) {
+                ClientPlayNetworkingBridge.advance(dialogue.id, entryId);
+                if (MinecraftClient.getInstance().player != null) {
+                    MinecraftClient.getInstance().player.playSound(SoundEvents.ENTITY_ITEM_PICKUP);
+                }
+            }
+            return true;
         }
         return true;
     }

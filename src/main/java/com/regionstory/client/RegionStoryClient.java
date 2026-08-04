@@ -119,20 +119,13 @@ public final class RegionStoryClient implements ClientModInitializer {
 
         int keyHeight = Math.min(RegionStoryUiMetrics.HINT_KEY_HEIGHT, boxHeight);
         int keyY = y + (boxHeight - keyHeight) / 2;
-        int keyFill = RegionStoryUi.blend(0xFFF4F5F7, 0xFFFFF8BA, pulse);
-        int keyBorder = RegionStoryUi.blend(0xFFFFFFFF, 0xFFFFF3A8, pulse);
         // The white F key remains an independent control outside the prompt panel.
         int keyX = x;
-//        RegionStoryUi.drawCapsule(context, keyX + 1, keyY + 1,
-//                RegionStoryUiMetrics.HINT_KEY_WIDTH, keyHeight, 0x3D182534, 0x3D182534);
-//        RegionStoryUi.drawCapsule(context, keyX, keyY,
-//                RegionStoryUiMetrics.HINT_KEY_WIDTH, keyHeight, keyFill, keyBorder);
-
         int keyTextWidth = RegionStoryUi.width(client.textRenderer, "F");
         int keyTextHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
                 * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE));
         float keyTextX = keyX + (RegionStoryUiMetrics.HINT_KEY_WIDTH - keyTextWidth * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE) / 2.0F - 10;
-        float keyTextY = keyY + (keyHeight - keyTextHeight) / 2.0F;
+        float keyTextY = keyY + (keyHeight - keyTextHeight) / 2.0F + 1;
         context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/hint_key.png"), (int) keyTextX - 4, (int) ((keyTextHeight + 2) * 0.1f + keyTextY - 2), (int) keyTextX + keyTextHeight, (int) ((keyTextHeight + 2) * 0.9f + keyTextY),0, 1, 0, 1);
         RegionStoryUi.drawTextScaled(context, client.textRenderer, "F",
                 RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE,
