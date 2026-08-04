@@ -10,6 +10,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
 import java.util.ArrayList;
@@ -121,31 +122,29 @@ public final class DialogueScreen extends Screen {
         int bandTop = height - bandHeight;
         float intro = MathHelper.clamp(introTicks
                 / (float) RegionStoryUiMetrics.INTRO_TICKS, 0.0F, 1.0F);
-        int bandColor = RegionStoryUi.blend(0x0007111E, 0xA807111E, intro);
-        RegionStoryUi.drawDialogueBand(context, 0, bandTop, width, bandHeight, bandColor);
-
+        context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/dialogue_background.png"), 0, height - bandHeight, width, height, 0, 1, 0, 1);
         int centerX = width / 2;
-        int speakerY = bandTop + 24;
-        drawCentered(context, entry.speaker(), centerX, speakerY, 0xFFFFD34F);
+        int speakerY = bandTop + 12;
+        drawCentered(context, entry.speaker(), centerX, speakerY, 0xFFFFD34F, 1.3f);
 
-        int lineY = speakerY + 11;
+        int lineY = speakerY + 14;
         if (entry.speakerTitle() != null && !entry.speakerTitle().isBlank()) {
-            drawTitleRule(context, centerX, lineY + 8, entry.speakerTitle());
+            drawTitleRule(context, centerX, lineY + 4, entry.speakerTitle());
             drawCentered(context, entry.speakerTitle(), centerX, lineY, 0xFFE9B94F);
-            lineY += 28;
+            lineY += 12;
         }
 
         int continuationY = bandTop + bandHeight - 15;
         int bodyHeight = dialogueLines.size() * RegionStoryUiMetrics.BODY_LINE_HEIGHT;
         int bodyY = Math.min(lineY + 2, continuationY - bodyHeight - 20);
         for (String line : dialogueLines) {
-            drawCentered(context, line, centerX, bodyY, 0xFFF7F7F2);
+            drawCentered(context, line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
             bodyY += RegionStoryUiMetrics.BODY_LINE_HEIGHT;
         }
 
         optionRects.clear();
         if (entry.options().isEmpty()) {
-            RegionStoryUi.drawHoverDiamond(context, centerX, continuationY, 8, 0xFFFFC52E);
+            RegionStoryUi.drawHoverDiamond(context, centerX, continuationY, 0xFFFFC52E);
             return;
         }
 
@@ -153,7 +152,7 @@ public final class DialogueScreen extends Screen {
                 Math.round(width * RegionStoryUiMetrics.OPTION_ANCHOR_X),
                 RegionStoryUiMetrics.PANEL_MARGIN,
                 Math.max(RegionStoryUiMetrics.PANEL_MARGIN,
-                        width - RegionStoryUiMetrics.PANEL_MARGIN - 1));
+                        width - RegionStoryUiMetrics.PANEL_MARGIN - 1)) + Math.round((1.0F - intro) * 12.0F);
         int availableOptionWidth = Math.max(1,
                 width - optionX - RegionStoryUiMetrics.PANEL_MARGIN);
         int optionW = Math.min(availableOptionWidth,
@@ -172,8 +171,8 @@ public final class DialogueScreen extends Screen {
         optionTotalHeight += Math.max(0,
                 (entry.options().size() - 1) * RegionStoryUiMetrics.OPTION_GAP);
 
-        int optionY = Math.max(12, bandTop - optionTotalHeight - 12)
-                + Math.round((1.0F - intro) * 12.0F);
+        int optionY = Math.max(0, bandTop - optionTotalHeight);
+
         int optionStartY = optionY;
         int activeHover = -1;
         for (int i = 0; i < entry.options().size(); i++) {
@@ -206,16 +205,10 @@ public final class DialogueScreen extends Screen {
                     ? RegionStoryUi.clickPulse(selectedOptionTicks,
                     RegionStoryUiMetrics.OPTION_CLICK_FEEDBACK_TICKS) : 0.0F;
 
-            int baseColor = RegionStoryUi.blend(0xD62A3544, 0xEF687684, hoverPulse);
-            baseColor = RegionStoryUi.blend(baseColor, 0xF0D8A443, clickPulse * 0.82F);
-            baseColor = RegionStoryUi.blend(0x002A3544, baseColor, intro);
-            RegionStoryUi.drawOpenFadePanel(context, optionX, optionY,
-                    optionW, optionHeight, baseColor);
+            RegionStoryUi.drawOpenFadePanel(context, optionX, optionY, optionW, optionHeight, hover);
 
             if (hover) {
-                RegionStoryUi.drawHoverArrow(context, optionX - 12,
-                        optionY + optionHeight / 2, 8,
-                        RegionStoryUi.blend(0xFFB9C2CB, 0xFFFFF4C7, hoverPulse));
+                RegionStoryUi.drawTextScaled(context, textRenderer, "▶", 0.7f, 1f, (float) (optionX - 10 + Math.sin(System.currentTimeMillis() / 200d)), optionY + optionHeight / 3f, 0xffffffff);
             }
 
             RegionStoryUi.drawIcon(context, client, option.icon(),
@@ -228,11 +221,11 @@ public final class DialogueScreen extends Screen {
             int textLineHeight = Math.max(1, Math.round(
                     textRenderer.fontHeight * RegionStoryUiMetrics.OPTION_TEXT_SCALE));
             int textBlockHeight = optionLines.size() * textLineHeight;
-            int textY = optionY + (optionHeight - textBlockHeight) / 2;
+            float textY = optionY + (optionHeight - textBlockHeight) / 2f;
             for (String line : optionLines) {
                 RegionStoryUi.drawTextScaled(context, textRenderer, line,
                         RegionStoryUiMetrics.OPTION_TEXT_SCALE,
-                        optionX + 30, textY,
+                        optionX + 24, textY,
                         RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8,
                                 0xFFFFF8C8, clickPulse));
                 textY += textLineHeight;
@@ -241,10 +234,14 @@ public final class DialogueScreen extends Screen {
         }
     }
 
+    private void drawCentered(DrawContext context, String value, int centerX, int y, int color, float scale) {
+        int textWidth = (int) (RegionStoryUi.width(textRenderer, value) * scale);
+        RegionStoryUi.drawTextScaled(context, textRenderer, value, scale,
+                centerX - textWidth / 2f, y, color);
+    }
+
     private void drawCentered(DrawContext context, String value, int centerX, int y, int color) {
-        int textWidth = RegionStoryUi.width(textRenderer, value);
-        RegionStoryUi.drawText(context, textRenderer, value,
-                centerX - textWidth / 2, y, color);
+        drawCentered(context, value, centerX, y, color, 1);
     }
 
     private void drawTitleRule(DrawContext context, int centerX, int y, String title) {
@@ -259,8 +256,6 @@ public final class DialogueScreen extends Screen {
                 Math.max(8, halfRule - gap - 6), 1, softColor);
         RegionStoryUi.drawRule(context, centerX + gap + 6, y + 3,
                 Math.max(8, halfRule - gap - 6), 1, softColor);
-        RegionStoryUi.drawHoverDiamond(context, centerX - halfRule - 4, y, 5, color);
-        RegionStoryUi.drawHoverDiamond(context, centerX + halfRule + 4, y, 5, color);
     }
 
     private List<String> wrap(String value, int maxWidth) {

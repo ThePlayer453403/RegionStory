@@ -1,7 +1,6 @@
 package com.regionstory.client;
 
 import com.regionstory.client.ui.RegionStoryPipelineRenderer;
-import com.regionstory.client.ui.RegionStoryUiMetrics;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gl.RenderPipelines;
@@ -40,17 +39,17 @@ public final class RegionStoryUi {
         return renderer.getWidth(text(value));
     }
 
-    public static void drawText(DrawContext context, TextRenderer renderer,
-                                String value, int x, int y, int color) {
-        context.drawTextWithShadow(renderer, text(value), x, y, color);
+    public static void drawTextScaled(DrawContext context, TextRenderer renderer,
+                                      String value, float scale, float x, float y, int color) {
+        drawTextScaled(context, renderer, value, scale, scale, x, y, color);
     }
 
     public static void drawTextScaled(DrawContext context, TextRenderer renderer,
-                                      String value, float scale, float x, float y, int color) {
-        if (scale <= 0.0F) return;
+                                      String value, float scaleX, float scaleY, float x, float y, int color) {
+        if (scaleX <= 0.0F || scaleY <= 0.0F) return;
         context.getMatrices().pushMatrix();
         context.getMatrices().translate(x, y);
-        context.getMatrices().scale(scale, scale);
+        context.getMatrices().scale(scaleX, scaleY);
         context.drawTextWithShadow(renderer, text(value), 0, 0, color);
         context.getMatrices().popMatrix();
     }
@@ -81,29 +80,30 @@ public final class RegionStoryUi {
     }
 
     /** Open-ended panel: left semicircle, flat body, transparent right fade. */
-    public static void drawOpenFadePanel(DrawContext context, int x, int y,
-                                         int w, int h, int color) {
-        RegionStoryPipelineRenderer.drawOpenFadePanel(context, x, y, w, h, color);
+    public static void drawOpenFadePanel(DrawContext context, int x, int y, int w, int h, boolean highlight) {
+        context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/fade_panel_top.png"), x, y, (int) (x+h*0.5f), y+h,0, 1, 0, 1);
+        context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/fade_panel.png"), (int) (x+h*0.5f), y, (int) (x+w-h*0.5f), y+h,0, 1, 0, 1);
+        if (highlight) {
+            int breathAlpha = Math.clamp((int) (((Math.sin(System.currentTimeMillis() / 200d) + 1.0) / 2.0) * 255), 0, 255);
+            context.drawTexture(RenderPipelines.GUI_TEXTURED, Identifier.of("regionstory", "textures/gui/fade_panel_top_highlight.png"), x, y, 0f, 0f, (int) (h * 0.5f), h, (int) (h * 0.5f), h, breathAlpha << 24 | 0x00FFFFFF);
+
+            int totalWidth = w - h;
+            for (int i = 0; i < totalWidth; i += 10) {
+                int currentWidth = Math.min(10, totalWidth - i);
+                int segmentAlpha = (int)((1.0f - (float) i / totalWidth) * breathAlpha);
+                context.drawTexture(RenderPipelines.GUI_TEXTURED, Identifier.of("regionstory", "textures/gui/fade_panel_highlight.png"), (int) (x + i + (h * 0.5f)), y, 0f, 0f, currentWidth, h, currentWidth, h, segmentAlpha << 24 | 0x00FFFFFF);
+            }
+        }
     }
 
-    /** Full-width bottom dialogue band without a hard border or blur. */
-    public static void drawDialogueBand(DrawContext context, int x, int y,
-                                        int w, int h, int color) {
-        RegionStoryPipelineRenderer.drawDialogueBand(context, x, y, w, h, color);
-    }
-
-    public static void drawHoverArrow(DrawContext context, int x, int centerY,
-                                      int size, int color) {
-        int half = Math.max(2, size / 2);
-        RegionStoryPipelineRenderer.drawSymbol(context, x, centerY - half, size,
-                SYMBOL_ARROW, color);
-    }
-
-    public static void drawHoverDiamond(DrawContext context, int centerX, int centerY,
-                                        int size, int color) {
-        int half = Math.max(2, size / 2);
-        RegionStoryPipelineRenderer.drawSymbol(context, centerX - half, centerY - half,
-                half * 2, SYMBOL_DIAMOND, color);
+    public static void drawHoverDiamond(DrawContext context, int centerX, int centerY, int color) {
+        drawTextScaled(context, MinecraftClient.getInstance().textRenderer, "◇", 1.5f, centerX-6, centerY-6, color);
+        context.getMatrices().pushMatrix();
+        context.getMatrices().translate(centerX + 0f, (float) (centerY - 3.5 + Math.sin(System.currentTimeMillis() / 200d)));
+        context.getMatrices().scale(0.7f);
+        context.getMatrices().rotate((float) Math.PI / 4);
+        context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, text("◢"), 0, 0, color);
+        context.getMatrices().popMatrix();
     }
 
     public static void drawRule(DrawContext context, int x, int y, int width, int height,
