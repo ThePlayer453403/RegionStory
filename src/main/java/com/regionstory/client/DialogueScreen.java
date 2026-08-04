@@ -145,7 +145,7 @@ public final class DialogueScreen extends Screen {
         int bodyHeight = dialogueLines.size() * RegionStoryUiMetrics.BODY_LINE_HEIGHT;
         int bodyY = Math.min(lineY + 2, continuationY - bodyHeight - 20);
 
-        int typingCount = (int) (System.currentTimeMillis() - typingStartTime) / 40;
+        int typingCount = (int) (System.currentTimeMillis() - typingStartTime) / RegionStoryUiMetrics.TYPING_SPEED_MILLISECOND;
 
         for (String line : dialogueLines) {
             if (typingCount >= line.length()) {

@@ -29,6 +29,7 @@ public final class RegionStoryUiMetrics {
     public static final float OPTION_TEXT_SCALE = 1.3F;
     public static final float HINT_TEXT_SCALE = 1.3F;
     public static final float HINT_KEY_TEXT_SCALE = 1.2F;
+    public static final int TYPING_SPEED_MILLISECOND = 30;
 
     private RegionStoryUiMetrics() {
     }
