@@ -86,13 +86,7 @@ public final class RegionStoryUi {
         if (highlight) {
             int breathAlpha = Math.clamp((int) (((Math.sin(System.currentTimeMillis() / 200d) + 1.0) / 2.0) * 255), 0, 255);
             context.drawTexture(RenderPipelines.GUI_TEXTURED, Identifier.of("regionstory", "textures/gui/fade_panel_top_highlight.png"), x, y, 0f, 0f, (int) (h * 0.5f), h, (int) (h * 0.5f), h, breathAlpha << 24 | 0x00FFFFFF);
-
-            int totalWidth = w - h;
-            for (int i = 0; i < totalWidth; i += 10) {
-                int currentWidth = Math.min(10, totalWidth - i);
-                int segmentAlpha = (int)((1.0f - (float) i / totalWidth) * breathAlpha);
-                context.drawTexture(RenderPipelines.GUI_TEXTURED, Identifier.of("regionstory", "textures/gui/fade_panel_highlight.png"), (int) (x + i + (h * 0.5f)), y, 0f, 0f, currentWidth, h, currentWidth, h, segmentAlpha << 24 | 0x00FFFFFF);
-            }
+            context.drawTexture(RenderPipelines.GUI_TEXTURED, Identifier.of("regionstory", "textures/gui/fade_panel_highlight.png"), (int) (h * 0.5f) + x, y, 0f, 0f, w -h, h, w - h, h, breathAlpha << 24 | 0x00FFFFFF);
         }
     }
 
