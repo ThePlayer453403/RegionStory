@@ -5,10 +5,12 @@ import com.regionstory.client.ui.RegionStoryUiMetrics;
 import com.regionstory.client.ui.RegionStoryPipelineRenderer;
 import com.regionstory.data.DialogueDefinition;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.KeyInput;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
@@ -290,12 +292,18 @@ public final class DialogueScreen extends Screen {
                     && click.y() >= rect[1] && click.y() <= rect[1] + rect[3]) {
                 selectedOption = i;
                 selectedOptionTicks = 0;
+                if (MinecraftClient.getInstance().player != null) {
+                    MinecraftClient.getInstance().player.playSound(SoundEvents.ENTITY_ITEM_PICKUP);
+                }
                 return true;
             }
         }
         DialogueDefinition.Entry entry = dialogue.entry(entryId);
         if (entry != null && entry.options().isEmpty()) {
             ClientPlayNetworkingBridge.advance(dialogue.id, entryId);
+            if (MinecraftClient.getInstance().player != null) {
+                MinecraftClient.getInstance().player.playSound(SoundEvents.ENTITY_ITEM_PICKUP);
+            }
         }
         return true;
     }
