@@ -317,6 +317,9 @@ public final class DialogueScreen extends Screen {
         DialogueDefinition.Entry entry = dialogue.entry(entryId);
         if (entry != null && entry.options().isEmpty()) {
             ClientPlayNetworkingBridge.advance(dialogue.id, entryId);
+            if (MinecraftClient.getInstance().player != null) {
+                MinecraftClient.getInstance().player.playSound(SoundEvents.ENTITY_ITEM_PICKUP);
+            }
         }
         return true;
     }
