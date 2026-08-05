@@ -16,6 +16,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import org.lwjgl.glfw.GLFW;
 
@@ -114,29 +115,23 @@ public final class RegionStoryClient implements ClientModInitializer {
         float pulse = RegionStoryUi.clickPulse(hintClickTicks,
                 RegionStoryUiMetrics.CLICK_FEEDBACK_TICKS);
 
-        int panelColor = RegionStoryUi.blend(0xD62A3544, 0xE45D6878, pulse * 0.80F);
-        RegionStoryUi.drawOpenFadePanel(context, panelX, y, panelWidth, boxHeight, panelColor);
+        RegionStoryUi.drawOpenFadePanel(context, panelX, y, panelWidth, boxHeight, true);
 
         int keyHeight = Math.min(RegionStoryUiMetrics.HINT_KEY_HEIGHT, boxHeight);
         int keyY = y + (boxHeight - keyHeight) / 2;
-        int keyFill = RegionStoryUi.blend(0xFFF4F5F7, 0xFFFFF8BA, pulse);
-        int keyBorder = RegionStoryUi.blend(0xFFFFFFFF, 0xFFFFF3A8, pulse);
         // The white F key remains an independent control outside the prompt panel.
         int keyX = x;
-        RegionStoryUi.drawCapsule(context, keyX + 1, keyY + 1,
-                RegionStoryUiMetrics.HINT_KEY_WIDTH, keyHeight, 0x3D182534, 0x3D182534);
-        RegionStoryUi.drawCapsule(context, keyX, keyY,
-                RegionStoryUiMetrics.HINT_KEY_WIDTH, keyHeight, keyFill, keyBorder);
-
         int keyTextWidth = RegionStoryUi.width(client.textRenderer, "F");
         int keyTextHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
                 * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE));
+        float keyTextX = keyX + (RegionStoryUiMetrics.HINT_KEY_WIDTH - keyTextWidth * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE) / 2.0F - 10;
+        float keyTextY = keyY + (keyHeight - keyTextHeight) / 2.0F + 1;
+        context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/hint_key.png"), (int) keyTextX - 4, (int) ((keyTextHeight + 2) * 0.1f + keyTextY - 2), (int) keyTextX + keyTextHeight, (int) ((keyTextHeight + 2) * 0.9f + keyTextY),0, 1, 0, 1);
         RegionStoryUi.drawTextScaled(context, client.textRenderer, "F",
                 RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE,
-                keyX + (RegionStoryUiMetrics.HINT_KEY_WIDTH - keyTextWidth
-                        * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE) / 2.0F,
-                keyY + (keyHeight - keyTextHeight) / 2.0F,
-                RegionStoryUi.blend(0xFF202833, 0xFF6B4A16, pulse));
+                keyTextX,
+                keyTextY,
+                0xff000000);
 
         int iconSize = RegionStoryUiMetrics.HINT_ICON_SIZE;
         int iconX = panelX + 9;
@@ -151,11 +146,12 @@ public final class RegionStoryClient implements ClientModInitializer {
         String label = displayHintLabel(client, Math.max(32, panelWidth - 48));
         int labelHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
                 * RegionStoryUiMetrics.HINT_TEXT_SCALE));
-        int labelY = y + Math.max(1, (boxHeight - labelHeight) / 2);
+        float labelY = y + Math.max(1, (boxHeight - labelHeight) / 2f);
         RegionStoryUi.drawTextScaled(context, client.textRenderer, label,
                 RegionStoryUiMetrics.HINT_TEXT_SCALE,
                 panelX + 30, labelY,
                 RegionStoryUi.blend(0xFFF6F2E7, 0xFFFFF7C5, pulse));
+        RegionStoryUi.drawTextScaled(context, client.textRenderer, "▶", 0.7f, 1f, (float) (panelX - 10 + Math.sin(System.currentTimeMillis() / 200d)), labelY + 2, 0xffffffff);
     }
 
     public static boolean isHintClicked(double mouseX, double mouseY) {
