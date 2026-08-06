@@ -148,7 +148,7 @@ public final class DialogueScreen extends Screen {
         int typingCount = (int) (System.currentTimeMillis() - typingStartTime) / RegionStoryUiMetrics.TYPING_SPEED_MILLISECOND;
 
         for (String line : dialogueLines) {
-            if (typingCount >= line.length()) {
+            if (typingCount >= line.length() || !typingAnimation) {
                 drawCentered(context, line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
             } else if (0 < typingCount) {
                 drawCentered(context, line.substring(0, typingCount), line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
