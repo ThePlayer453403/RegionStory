@@ -1,10 +1,7 @@
 package com.regionstory.mixin;
 
-import com.regionstory.client.CameraTransitionController;
 import com.regionstory.client.RegionStoryClient;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
-import net.minecraft.client.input.MouseInput;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
