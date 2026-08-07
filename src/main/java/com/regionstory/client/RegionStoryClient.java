@@ -32,8 +32,6 @@ public final class RegionStoryClient implements ClientModInitializer {
     public static Map<String, String> currentIcon = new HashMap<>();
 
     public static int selectedRegionIndex = -1;
-
-//    private static int hintClickTicks;
     private static final DialogueManager CLIENT_DIALOGUES = new DialogueManager();
 
     @Override
