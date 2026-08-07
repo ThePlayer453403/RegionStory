@@ -14,20 +14,26 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /** Client entry point for the region hint, key binding, and dialogue payloads. */
 public final class RegionStoryClient implements ClientModInitializer {
     public static KeyBinding TALK_KEY;
-    public static String currentRegion = "";
-    public static String currentPrompt = "";
-    public static String currentIcon = "";
+    public static List<String > currentRegion = new ArrayList<>();
+    public static Map<String, String> currentPrompt = new HashMap<>();
+    public static Map<String, String> currentIcon = new HashMap<>();
 
-    private static int hintClickTicks;
+    public static int selectedRegionIndex = -1;
+
+//    private static int hintClickTicks;
     private static final DialogueManager CLIENT_DIALOGUES = new DialogueManager();
 
     @Override
@@ -39,12 +45,25 @@ public final class RegionStoryClient implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(RegionStoryMod.RegionHintPayload.ID, (payload, context) ->
                 context.client().execute(() -> {
-                    boolean regionChanged = !currentRegion.equals(payload.regionId());
-                    currentRegion = payload.regionId();
-                    currentPrompt = payload.prompt();
-                    currentIcon = payload.icon();
-                    if (currentRegion.isEmpty() || regionChanged) hintClickTicks = 0;
+                    if (!currentRegion.contains(payload.regionId())) {
+                        currentRegion.add(payload.regionId());
+                        currentPrompt.put(payload.regionId(), payload.prompt());
+                        currentIcon.put(payload.regionId(), payload.icon());
+                    } else {
+                        currentPrompt.replace(payload.regionId(), payload.prompt());
+                        currentIcon.replace(payload.regionId(), payload.icon());
+                    }
+//                    hintClickTicks = 0;
                 }));
+
+        ClientPlayNetworking.registerGlobalReceiver(RegionStoryMod.RemoveRegionHintPayload.ID, ((payload, context) ->
+                context.client().execute(() -> {
+                    if (currentRegion.contains(payload.regionId())) {
+                        currentRegion.remove(payload.regionId());
+                        currentPrompt.remove(payload.regionId());
+                        currentIcon.remove(payload.regionId());
+                    }
+                })));
 
         ClientPlayNetworking.registerGlobalReceiver(RegionStoryMod.OpenDialoguePayload.ID, (payload, context) ->
                 context.client().execute(() -> receiveDialogue(payload)));
@@ -57,35 +76,32 @@ public final class RegionStoryClient implements ClientModInitializer {
                 }));
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            currentRegion = "";
-            currentPrompt = "";
-            currentIcon = "";
-            hintClickTicks = 0;
+            currentRegion = new ArrayList<>();
+            currentPrompt = new HashMap<>();
+            currentIcon = new HashMap<>();
             CLIENT_DIALOGUES.clear();
             CameraTransitionController.reset(client);
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             CameraTransitionController.tick(client);
-            if (hintClickTicks > 0) {
-                hintClickTicks++;
-                if (hintClickTicks >= RegionStoryUiMetrics.CLICK_FEEDBACK_TICKS) {
-                    sendStartDialogue(client);
-                    hintClickTicks = 0;
-                }
-            }
             if (TALK_KEY.wasPressed() && client.currentScreen == null && !currentRegion.isEmpty()) {
-                sendStartDialogue(client);
+                sendStartDialogue(client, currentRegion.get(selectedRegionIndex));
             }
         });
 
-        HudRenderCallback.EVENT.register(RegionStoryClient::renderHint);
+        HudRenderCallback.EVENT.register((context, tickCounter) -> {
+            if (selectedRegionIndex < 0 || selectedRegionIndex >= currentRegion.size()) {
+                selectedRegionIndex = currentRegion.size() - 1;
+            }
+            currentRegion.forEach((region) -> RegionStoryClient.renderHint(context, region));
+        });
     }
 
-    private static void sendStartDialogue(MinecraftClient client) {
+    private static void sendStartDialogue(MinecraftClient client, String region) {
         if (client.player == null || client.currentScreen != null || currentRegion.isEmpty()
                 || !RegionStoryPipelineRenderer.available()) return;
-        ClientPlayNetworking.send(new RegionStoryMod.StartDialoguePayload(currentRegion));
+        ClientPlayNetworking.send(new RegionStoryMod.StartDialoguePayload(region));
     }
 
     private static void receiveDialogue(RegionStoryMod.OpenDialoguePayload payload) {
@@ -99,83 +115,66 @@ public final class RegionStoryClient implements ClientModInitializer {
         }
     }
 
-    private static void renderHint(DrawContext context, RenderTickCounter tickCounter) {
+    private static void renderHint(DrawContext context, String region) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.currentScreen != null || currentRegion.isEmpty()
                 || !RegionStoryPipelineRenderer.available()) return;
 
-        int[] bounds = hintBounds(client);
+        int[] bounds = hintBounds(client, region);
         int x = bounds[0];
-        int y = bounds[1];
+        int y = bounds[1] - currentRegion.indexOf(region) * 25;
         int boxWidth = bounds[2];
         int boxHeight = bounds[3];
         int panelX = x + RegionStoryUiMetrics.HINT_KEY_WIDTH + RegionStoryUiMetrics.HINT_KEY_GAP;
         int panelWidth = boxWidth - RegionStoryUiMetrics.HINT_KEY_WIDTH
                 - RegionStoryUiMetrics.HINT_KEY_GAP;
-        float pulse = RegionStoryUi.clickPulse(hintClickTicks,
-                RegionStoryUiMetrics.CLICK_FEEDBACK_TICKS);
+        boolean selected = currentRegion.indexOf(region) == selectedRegionIndex;
 
-        RegionStoryUi.drawOpenFadePanel(context, panelX, y, panelWidth, boxHeight, true);
-
-        int keyHeight = Math.min(RegionStoryUiMetrics.HINT_KEY_HEIGHT, boxHeight);
-        int keyY = y + (boxHeight - keyHeight) / 2;
-        // The white F key remains an independent control outside the prompt panel.
-        int keyX = x;
-        int keyTextWidth = RegionStoryUi.width(client.textRenderer, "F");
-        int keyTextHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
-                * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE));
-        float keyTextX = keyX + (RegionStoryUiMetrics.HINT_KEY_WIDTH - keyTextWidth * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE) / 2.0F - 10;
-        float keyTextY = keyY + (keyHeight - keyTextHeight) / 2.0F + 1;
-        context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/hint_key.png"), (int) keyTextX - 4, (int) ((keyTextHeight + 2) * 0.1f + keyTextY - 2), (int) keyTextX + keyTextHeight, (int) ((keyTextHeight + 2) * 0.9f + keyTextY),0, 1, 0, 1);
-        RegionStoryUi.drawTextScaled(context, client.textRenderer, "F",
-                RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE,
-                keyTextX,
-                keyTextY,
-                0xff000000);
+        RegionStoryUi.drawOpenFadePanel(context, panelX, y, panelWidth, boxHeight, selected);
 
         int iconSize = RegionStoryUiMetrics.HINT_ICON_SIZE;
         int iconX = panelX + 9;
         int iconY = y + (boxHeight - iconSize) / 2;
-        if (currentIcon.isBlank()) {
+        if (currentIcon.get(region).isBlank()) {
             RegionStoryUi.drawReferenceChatIcon(context, iconX, iconY, iconSize);
         } else {
-            RegionStoryUi.drawIcon(context, client, currentIcon, iconX, iconY, iconSize,
-                    RegionStoryUi.blend(0xFFF6F8FB, 0xFFFFF3AE, pulse));
+            RegionStoryUi.drawIcon(context, client, currentIcon.get(region), iconX, iconY, iconSize,
+                    RegionStoryUi.blend(0xFFF6F8FB, 0xFFFFF3AE, 0));
         }
 
-        String label = displayHintLabel(client, Math.max(32, panelWidth - 48));
+        String label = displayHintLabel(client, Math.max(32, panelWidth - 48), region);
         int labelHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
                 * RegionStoryUiMetrics.HINT_TEXT_SCALE));
         float labelY = y + Math.max(1, (boxHeight - labelHeight) / 2f);
         RegionStoryUi.drawTextScaled(context, client.textRenderer, label,
                 RegionStoryUiMetrics.HINT_TEXT_SCALE,
                 panelX + 30, labelY,
-                RegionStoryUi.blend(0xFFF6F2E7, 0xFFFFF7C5, pulse));
-        RegionStoryUi.drawTextScaled(context, client.textRenderer, "▶", 0.7f, 1f, (float) (panelX - 10 + Math.sin(System.currentTimeMillis() / 200d)), labelY + 2, 0xffffffff);
+                RegionStoryUi.blend(0xFFF6F2E7, 0xFFFFF7C5, 0));
+
+        if (selected) {
+            int keyHeight = Math.min(RegionStoryUiMetrics.HINT_KEY_HEIGHT, boxHeight);
+            int keyY = y + (boxHeight - keyHeight) / 2;
+            // The white F key remains an independent control outside the prompt panel.
+            int keyTextWidth = RegionStoryUi.width(client.textRenderer, "F");
+            int keyTextHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
+                    * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE));
+            float keyTextX = x + (RegionStoryUiMetrics.HINT_KEY_WIDTH - keyTextWidth * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE) / 2.0F - 10;
+            float keyTextY = keyY + (keyHeight - keyTextHeight) / 2.0F + 1;
+            context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/hint_key.png"), (int) keyTextX - 4, (int) ((keyTextHeight + 2) * 0.1f + keyTextY - 2), (int) keyTextX + keyTextHeight, (int) ((keyTextHeight + 2) * 0.9f + keyTextY),0, 1, 0, 1);
+            RegionStoryUi.drawTextScaled(context, client.textRenderer, "F",
+                    RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE,
+                    keyTextX,
+                    keyTextY,
+                    0xff000000);
+            RegionStoryUi.drawTextScaled(context, client.textRenderer, "▶", 0.7f, 1f, (float) (panelX - 10 + Math.sin(System.currentTimeMillis() / 200d)), labelY + 2, 0xffffffff);
+
+        }
     }
 
-    public static boolean isHintClicked(double mouseX, double mouseY) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.currentScreen != null || currentRegion.isEmpty()) return false;
-        mouseX = mouseX * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
-        mouseY = mouseY * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
-        int[] bounds = hintBounds(client);
-        return mouseX >= bounds[0] && mouseX <= bounds[0] + bounds[2]
-                && mouseY >= bounds[1] && mouseY <= bounds[1] + bounds[3];
-    }
-
-    public static boolean beginHintClick() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.currentScreen != null
-                || currentRegion.isEmpty() || hintClickTicks > 0) return false;
-        hintClickTicks = 1;
-        return true;
-    }
-
-    private static int[] hintBounds(MinecraftClient client) {
+    private static int[] hintBounds(MinecraftClient client, String region) {
         int width = client.getWindow().getScaledWidth();
         int height = client.getWindow().getScaledHeight();
-        int textWidth = Math.round(RegionStoryUi.width(client.textRenderer, hintLabel())
+        int textWidth = Math.round(RegionStoryUi.width(client.textRenderer, hintLabel(region))
                 * RegionStoryUiMetrics.HINT_TEXT_SCALE);
         int maxPanelWidth = Math.max(96, width - RegionStoryUiMetrics.PANEL_MARGIN * 2
                 - RegionStoryUiMetrics.HINT_KEY_WIDTH - RegionStoryUiMetrics.HINT_KEY_GAP);
@@ -196,14 +195,14 @@ public final class RegionStoryClient implements ClientModInitializer {
         return new int[]{x, y, boxWidth, boxHeight};
     }
 
-    private static String hintLabel() {
-        String label = currentPrompt == null ? "" : currentPrompt.trim();
+    private static String hintLabel(String region) {
+        String label = currentPrompt == null ? "" : currentPrompt.get(region).trim();
         label = label.replaceFirst("(?i)^\\s*(按\\s*)?f\\s*", "").trim();
         return label.isEmpty() ? "对话" : label;
     }
 
-    private static String displayHintLabel(MinecraftClient client, int maxWidth) {
-        String label = hintLabel();
+    private static String displayHintLabel(MinecraftClient client, int maxWidth, String region) {
+        String label = hintLabel(region);
         int scaledWidth = Math.round(RegionStoryUi.width(client.textRenderer, label)
                 * RegionStoryUiMetrics.HINT_TEXT_SCALE);
         if (scaledWidth <= maxWidth) return label;
