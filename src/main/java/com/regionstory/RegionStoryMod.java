@@ -23,9 +23,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.command.permission.LeveledPermissionPredicate;
 import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.util.Identifier;
-import java.util.Objects;
-import java.util.Map;
-import java.util.UUID;
+
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +37,7 @@ public final class RegionStoryMod implements ModInitializer {
     private static final int MAX_ENTRY_JSON_BYTES = 24 * 1024;
     public static final Identifier OPEN_DIALOGUE = Identifier.of(MOD_ID, "open_dialogue");
     public static final Identifier REGION_HINT = Identifier.of(MOD_ID, "region_hint");
+    public static final Identifier REMOVE_REGION_HINT = Identifier.of(MOD_ID, "remove_region_hint");
     public static final Identifier START_DIALOGUE = Identifier.of(MOD_ID, "start_dialogue");
     public static final Identifier ADVANCE_DIALOGUE = Identifier.of(MOD_ID, "advance_dialogue");
     public static final Identifier SELECT_OPTION = Identifier.of(MOD_ID, "select_option");
@@ -55,6 +55,14 @@ public final class RegionStoryMod implements ModInitializer {
                 PacketCodecs.STRING, RegionHintPayload::prompt,
                 PacketCodecs.STRING, RegionHintPayload::icon,
                 RegionHintPayload::new);
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record RemoveRegionHintPayload(String regionId) implements CustomPayload {
+        public static final Id<RemoveRegionHintPayload> ID = new Id<>(REMOVE_REGION_HINT);
+        public static final PacketCodec<RegistryByteBuf, RemoveRegionHintPayload> CODEC = PacketCodec.tuple(
+                PacketCodecs.STRING, RemoveRegionHintPayload::regionId,
+                RemoveRegionHintPayload::new);
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
@@ -103,6 +111,7 @@ public final class RegionStoryMod implements ModInitializer {
 
     public static void init() {
         PayloadTypeRegistry.playS2C().register(RegionHintPayload.ID, RegionHintPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RemoveRegionHintPayload.ID, RemoveRegionHintPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(OpenDialoguePayload.ID, OpenDialoguePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(CloseDialoguePayload.ID, CloseDialoguePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(StartDialoguePayload.ID, StartDialoguePayload.CODEC);
@@ -164,25 +173,20 @@ public final class RegionStoryMod implements ModInitializer {
     @Override public void onInitialize() { init(); }
 
     private static void updateRegionState(ServerPlayerEntity player) {
-        String previous = REGIONS.active(player.getUuid());
-        String current = null;
-        for (var region : REGIONS.all().stream().sorted((a, b) -> Integer.compare(b.priority, a.priority)).toList()) {
+        List<String> previous = REGIONS.active(player.getUuid());
+        List<String> current = new ArrayList<>();
+
+        for (var region: REGIONS.all().stream().sorted((a, b) -> Integer.compare(b.priority, a.priority)).toList()) {
             if (region.contains(player.getEntityWorld().getRegistryKey().getValue(), player.getX(), player.getY(), player.getZ())) {
-                current = region.id;
-                break;
+                current.add(region.id);
+                if (!previous.contains(region.id)) {
+                    ServerPlayNetworking.send(player, new RegionHintPayload(region.id, region.prompt, region.icon));
+                }
+            } else if (previous.contains(region.id)) {
+                ServerPlayNetworking.send(player, new RemoveRegionHintPayload(region.id));
             }
         }
-        if (Objects.equals(previous, current)) return;
-        if (SESSIONS.containsKey(player.getUuid())) {
-            closeDialogue(player, SESSIONS.get(player.getUuid()).dialogueId);
-        }
         REGIONS.setActive(player.getUuid(), current);
-        if (current == null) {
-            ServerPlayNetworking.send(player, new RegionHintPayload("", "", ""));
-        } else {
-            var region = REGIONS.get(current);
-            ServerPlayNetworking.send(player, new RegionHintPayload(region.id, region.prompt, region.icon));
-        }
     }
 
     private static void advanceDialogue(ServerPlayerEntity player, AdvanceDialoguePayload payload) {

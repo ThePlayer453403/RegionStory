@@ -11,18 +11,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Server-side region definitions and transient player state. */
 public final class RegionManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("RegionStory/Region");
     private final Map<String, RegionDefinition> definitions = new ConcurrentHashMap<>();
-    private final Map<UUID, String> activeRegions = new ConcurrentHashMap<>();
+    private final Map<UUID, List<String>> activeRegions = new ConcurrentHashMap<>();
 
     public void reload(ResourceManager manager) {
         Map<String, RegionDefinition> next = new HashMap<>();
@@ -117,11 +113,12 @@ public final class RegionManager {
         return definitions.get(id);
     }
 
-    public String active(UUID player) {
-        return activeRegions.get(player);
+    public List<String> active(UUID player) {
+        var region = activeRegions.get(player);
+        return Objects.requireNonNullElseGet(region, ArrayList::new);
     }
 
-    public void setActive(UUID player, String id) {
+    public void setActive(UUID player, List<String> id) {
         if (id == null) activeRegions.remove(player);
         else activeRegions.put(player, id);
     }
