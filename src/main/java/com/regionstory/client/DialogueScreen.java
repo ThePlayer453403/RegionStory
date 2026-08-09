@@ -134,12 +134,12 @@ public final class DialogueScreen extends Screen {
         context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/dialogue_background.png"), 0, height - bandHeight, width, height, 0, 1, 0, 1);
         int centerX = width / 2;
         int speakerY = bandTop + 12;
-        GILText.renderScaledCentered(context, entry.speaker(), 0xffffd34f, new Vector2f(centerX, speakerY), 1.3f);
+        GILText.textRender(context, entry.speaker(), centerX, speakerY).color(0xffffd34f).center().scale(1.3f).render();
 
         int lineY = speakerY + 14;
         if (entry.speakerTitle() != null && !entry.speakerTitle().isBlank()) {
             drawTitleRule(context, centerX, lineY + 4, entry.speakerTitle());
-            GILText.renderSimpleCentered(context, entry.speakerTitle(), 0xffe9b94f, new Vector2f(centerX, lineY));
+            GILText.textRender(context, entry.speaker(), centerX, lineY).color(0xffe9b94f).center().render();
             lineY += 12;
         }
 
@@ -151,9 +151,9 @@ public final class DialogueScreen extends Screen {
 
         for (String line : dialogueLines) {
             if (typingCount >= line.length() || !typingAnimation) {
-                GILText.renderScaledCentered(context, line, 0xfff7f7f2, new Vector2f(centerX, bodyY), 1.3f);
+                GILText.textRender(context, line, centerX, bodyY).color(0xfff7f7f2).scale(1.3f).center().render();
             } else if (0 < typingCount) {
-                GILText.renderScaledCentered(context, line.substring(0, typingCount), line, 0xfff7f7f2, new Vector2f(centerX, bodyY), 1.3f);
+                GILText.textRender(context, line.substring(0, typingCount), centerX, bodyY).color(0xfff7f7f2).scale(1.3f).center(line).render();
             }
             typingCount -= line.length();
             bodyY += RegionStoryUiMetrics.BODY_LINE_HEIGHT;
@@ -165,8 +165,9 @@ public final class DialogueScreen extends Screen {
             float intro = MathHelper.clamp(introTicks / (float) RegionStoryUiMetrics.INTRO_TICKS, 0.0F, 1.0F);
             optionRects.clear();
             if (entry.options().isEmpty()) {
-                GILText.renderScaled(context, "◇", 0xffffc52e, new Vector2f(centerX - 6, continuationY - 6), 1.5f, false);
-                GILText.render(context, "◢", 0xffffc52e, new Vector2f(centerX + 0f, (float) (continuationY - 3.5 + Math.sin(System.currentTimeMillis() / 200d))), 0.7f, 45, false);
+                GILText.textRender(context, "◇", centerX - 6, continuationY - 6).color(0xffffc52e).scale(1.5f).outline(false).render();
+                GILText.textRender(context, "◢", centerX, (float) (continuationY - 3.5 + Math.sin(System.currentTimeMillis() / 200d))).color(0xffffc52e).scale(0.7f).outline(false).rotate(45).render();
+
                 return;
             }
 
@@ -230,7 +231,7 @@ public final class DialogueScreen extends Screen {
                 RegionStoryUi.drawOpenFadePanel(context, optionX, optionY, optionW, optionHeight, hover);
 
                 if (hover) {
-                    GILText.render(context, "◢", 0xffffffff, new Vector2f((float) (optionX - 10 + Math.sin(System.currentTimeMillis() / 200d)), optionY + 11), new Vector2f(0.8f, 0.8f), -45, false);
+                    GILText.textRender(context, "◢", (float) (optionX - 10 + Math.sin(System.currentTimeMillis() / 200d) - 1), optionY + 11).scale(0.8f).rotate(-45).outline(false).render();
                 }
 
                 RegionStoryUi.drawIcon(context, client, option.icon(),
@@ -245,7 +246,7 @@ public final class DialogueScreen extends Screen {
                 int textBlockHeight = optionLines.size() * textLineHeight;
                 float textY = optionY + (optionHeight - textBlockHeight) / 2f;
                 for (String line : optionLines) {
-                    GILText.renderScaled(context, line, RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8, 0xFFFFF8C8, clickPulse), new Vector2f(optionX + 24, textY), RegionStoryUiMetrics.OPTION_TEXT_SCALE);
+                    GILText.textRender(context, line, optionX + 24, textY).color(RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8, 0xFFFFF8C8, clickPulse)).scale(RegionStoryUiMetrics.OPTION_TEXT_SCALE).render();
                     textY += textLineHeight;
                 }
                 optionY += optionHeight + RegionStoryUiMetrics.OPTION_GAP;

@@ -145,7 +145,7 @@ public final class RegionStoryClient implements ClientModInitializer {
         int labelHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
                 * RegionStoryUiMetrics.HINT_TEXT_SCALE));
         float labelY = y + Math.max(1, (boxHeight - labelHeight) / 2f);
-        GILText.renderScaled(context, label, RegionStoryUi.blend(0xFFF6F2E7, 0xFFFFF7C5, 0), new Vector2f(panelX + 30, labelY), RegionStoryUiMetrics.HINT_TEXT_SCALE);
+        GILText.textRender(context, label, panelX + 30, labelY).color(RegionStoryUi.blend(0xFFF6F2E7, 0xFFFFF7C5, 0)).scale(RegionStoryUiMetrics.HINT_TEXT_SCALE).render();
 
         if (selected) {
             int keyHeight = Math.min(RegionStoryUiMetrics.HINT_KEY_HEIGHT, boxHeight);
@@ -157,9 +157,8 @@ public final class RegionStoryClient implements ClientModInitializer {
             float keyTextX = x + (RegionStoryUiMetrics.HINT_KEY_WIDTH - keyTextWidth * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE) / 2.0F - 10;
             float keyTextY = keyY + (keyHeight - keyTextHeight) / 2.0F + 1;
             context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/hint_key.png"), (int) keyTextX - 4, (int) ((keyTextHeight + 2) * 0.1f + keyTextY - 2), (int) keyTextX + keyTextHeight, (int) ((keyTextHeight + 2) * 0.9f + keyTextY),0, 1, 0, 1);
-            GILText.renderScaled(context, "F", 0xff000000, new Vector2f(keyTextX, keyTextY), RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE, false);
-            GILText.render(context, "◢", 0xffffffff, new Vector2f((float) (panelX - 10 + Math.sin(System.currentTimeMillis() / 200d)), labelY + 6), new Vector2f(0.8f, 0.8f), -45, false);
-
+            GILText.textRender(context, "F", keyTextX, keyTextY).scale(RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE).color(0xff000000).outline(false).render();
+            GILText.textRender(context, "◢", (float) (panelX - 10 + Math.sin(System.currentTimeMillis() / 200d) -1), labelY + 6).scale(0.8f).rotate(-45).outline(false).render();
         }
     }
 
