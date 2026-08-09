@@ -90,8 +90,10 @@ public final class RegionStoryClient implements ClientModInitializer {
         });
 
         HudRenderCallback.EVENT.register((context, tickCounter) -> {
-            if (selectedRegionIndex < 0 || selectedRegionIndex >= currentRegion.size()) {
-                selectedRegionIndex = currentRegion.size() - 1;
+            if (!MinecraftClient.getInstance().options.hudHidden) {
+                if (selectedRegionIndex < 0 || selectedRegionIndex >= currentRegion.size()) {
+                    selectedRegionIndex = currentRegion.size() - 1;
+                }
             }
             currentRegion.forEach((region) -> RegionStoryClient.renderHint(context, region));
         });

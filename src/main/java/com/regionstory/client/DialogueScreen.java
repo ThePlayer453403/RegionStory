@@ -281,7 +281,7 @@ public final class DialogueScreen extends Screen {
                 continue;
             }
             String candidate = line + String.valueOf(character);
-            if (!line.isEmpty() && GILText.width(candidate) > limit) {
+            if (!line.isEmpty() && GILText.width(candidate) * RegionStoryUiMetrics.OPTION_TEXT_SCALE > limit) {
                 lines.add(line.toString());
                 line.setLength(0);
             }
