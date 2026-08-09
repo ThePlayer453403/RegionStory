@@ -4,6 +4,7 @@ import com.regionstory.RegionStoryMod;
 import com.regionstory.client.ui.RegionStoryUiMetrics;
 import com.regionstory.client.ui.RegionStoryPipelineRenderer;
 import com.regionstory.data.DialogueDefinition;
+import com.tp4.genshinlib.client.GILText;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -14,6 +15,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
+import org.joml.Vector2f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -132,12 +134,12 @@ public final class DialogueScreen extends Screen {
         context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/dialogue_background.png"), 0, height - bandHeight, width, height, 0, 1, 0, 1);
         int centerX = width / 2;
         int speakerY = bandTop + 12;
-        drawCentered(context, entry.speaker(), centerX, speakerY, 0xFFFFD34F, 1.3f);
+        GILText.renderScaledCentered(context, entry.speaker(), 0xffffd34f, new Vector2f(centerX, speakerY), 1.3f);
 
         int lineY = speakerY + 14;
         if (entry.speakerTitle() != null && !entry.speakerTitle().isBlank()) {
             drawTitleRule(context, centerX, lineY + 4, entry.speakerTitle());
-            drawCentered(context, entry.speakerTitle(), centerX, lineY, 0xFFE9B94F);
+            GILText.renderSimpleCentered(context, entry.speakerTitle(), 0xffe9b94f, new Vector2f(centerX, lineY));
             lineY += 12;
         }
 
@@ -149,9 +151,9 @@ public final class DialogueScreen extends Screen {
 
         for (String line : dialogueLines) {
             if (typingCount >= line.length() || !typingAnimation) {
-                drawCentered(context, line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
+                GILText.renderScaledCentered(context, line, 0xfff7f7f2, new Vector2f(centerX, bodyY), 1.3f);
             } else if (0 < typingCount) {
-                drawCentered(context, line.substring(0, typingCount), line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
+                GILText.renderScaledCentered(context, line.substring(0, typingCount), line, 0xfff7f7f2, new Vector2f(centerX, bodyY), 1.3f);
             }
             typingCount -= line.length();
             bodyY += RegionStoryUiMetrics.BODY_LINE_HEIGHT;
@@ -163,7 +165,8 @@ public final class DialogueScreen extends Screen {
             float intro = MathHelper.clamp(introTicks / (float) RegionStoryUiMetrics.INTRO_TICKS, 0.0F, 1.0F);
             optionRects.clear();
             if (entry.options().isEmpty()) {
-                RegionStoryUi.drawHoverDiamond(context, centerX, continuationY, 0xFFFFC52E);
+                GILText.renderScaled(context, "◇", 0xffffc52e, new Vector2f(centerX - 6, continuationY - 6), 1.5f, false);
+                GILText.render(context, "◢", 0xffffc52e, new Vector2f(centerX + 0f, (float) (continuationY - 3.5 + Math.sin(System.currentTimeMillis() / 200d))), 0.7f, 45, false);
                 return;
             }
 
@@ -227,7 +230,7 @@ public final class DialogueScreen extends Screen {
                 RegionStoryUi.drawOpenFadePanel(context, optionX, optionY, optionW, optionHeight, hover);
 
                 if (hover) {
-                    RegionStoryUi.drawTextScaled(context, textRenderer, "▶", 0.7f, 1f, (float) (optionX - 10 + Math.sin(System.currentTimeMillis() / 200d)), optionY + optionHeight / 3f, 0xffffffff);
+                    GILText.render(context, "◢", 0xffffffff, new Vector2f((float) (optionX - 10 + Math.sin(System.currentTimeMillis() / 200d)), optionY + 11), new Vector2f(0.8f, 0.8f), -45, false);
                 }
 
                 RegionStoryUi.drawIcon(context, client, option.icon(),
@@ -242,11 +245,7 @@ public final class DialogueScreen extends Screen {
                 int textBlockHeight = optionLines.size() * textLineHeight;
                 float textY = optionY + (optionHeight - textBlockHeight) / 2f;
                 for (String line : optionLines) {
-                    RegionStoryUi.drawTextScaled(context, textRenderer, line,
-                            RegionStoryUiMetrics.OPTION_TEXT_SCALE,
-                            optionX + 24, textY,
-                            RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8,
-                                    0xFFFFF8C8, clickPulse));
+                    GILText.renderScaled(context, line, RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8, 0xFFFFF8C8, clickPulse), new Vector2f(optionX + 24, textY), RegionStoryUiMetrics.OPTION_TEXT_SCALE);
                     textY += textLineHeight;
                 }
                 optionY += optionHeight + RegionStoryUiMetrics.OPTION_GAP;
@@ -254,22 +253,8 @@ public final class DialogueScreen extends Screen {
         }
     }
 
-    private void drawCentered(DrawContext context, String value, String fullValue, int centerX, int y, int color, float scale) {
-        int textWidth = (int) (RegionStoryUi.width(textRenderer, fullValue) * scale);
-        RegionStoryUi.drawTextScaled(context, textRenderer, value, scale,
-                centerX - textWidth / 2f, y, color);
-    }
-
-    private void drawCentered(DrawContext context, String value, int centerX, int y, int color, float scale) {
-        drawCentered(context, value, value, centerX, y, color, scale);
-    }
-
-    private void drawCentered(DrawContext context, String value, int centerX, int y, int color) {
-        drawCentered(context, value, centerX, y, color, 1);
-    }
-
     private void drawTitleRule(DrawContext context, int centerX, int y, String title) {
-        int titleWidth = RegionStoryUi.width(textRenderer, title);
+        int titleWidth = GILText.width(title);
         int gap = titleWidth / 2 + 13;
         int halfRule = Math.max(44, Math.min(150, gap + 38));
         int color = 0xD9D8A54A;
@@ -295,7 +280,7 @@ public final class DialogueScreen extends Screen {
                 continue;
             }
             String candidate = line + String.valueOf(character);
-            if (!line.isEmpty() && RegionStoryUi.width(textRenderer, candidate) > limit) {
+            if (!line.isEmpty() && GILText.width(candidate) > limit) {
                 lines.add(line.toString());
                 line.setLength(0);
             }
