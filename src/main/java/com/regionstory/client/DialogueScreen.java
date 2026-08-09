@@ -15,13 +15,13 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
-import org.joml.Vector2f;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** Dialogue screen. Shapes are shader-rendered; Minecraft TextRenderer remains the font backend. */
 public final class DialogueScreen extends Screen {
+    private boolean hudVisible;
     private DialogueDefinition dialogue;
     private String entryId;
     private int introTicks;
@@ -39,6 +39,8 @@ public final class DialogueScreen extends Screen {
         super(Text.literal("RegionStory"));
         this.dialogue = dialogue;
         this.entryId = entryId;
+        this.hudVisible = MinecraftClient.getInstance().options.hudHidden;
+        MinecraftClient.getInstance().options.hudHidden = true;
     }
 
     @Override
@@ -105,6 +107,7 @@ public final class DialogueScreen extends Screen {
 
     @Override
     public void removed() {
+        MinecraftClient.getInstance().options.hudHidden = hudVisible;
         super.removed();
         if (!serverClosing) {
             CameraTransitionController.beginExit(client);

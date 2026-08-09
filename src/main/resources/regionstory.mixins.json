@@ -5,8 +5,7 @@
   "client": [
     "CameraMixin",
     "CameraAccessor",
-    "MouseMixin",
-    "HudMixin"
+    "MouseMixin"
   ],
   "injectors": {
     "defaultRequire": 1
