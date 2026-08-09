@@ -29,11 +29,6 @@ public final class RegionStoryUi {
     private RegionStoryUi() {
     }
 
-    public static Text text(String value) {
-        return Text.literal(value == null ? "" : value)
-                .setStyle(Style.EMPTY.withFont(new StyleSpriteSource.Font(FONT)));
-    }
-
     /** Returns one complete original -> highlight -> original click pulse. */
     public static float clickPulse(int ticks, int duration) {
         if (ticks < 0 || duration <= 0 || ticks > duration) return 0.0F;

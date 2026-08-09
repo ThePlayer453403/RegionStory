@@ -18,7 +18,6 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
-import org.joml.Vector2f;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -94,8 +93,8 @@ public final class RegionStoryClient implements ClientModInitializer {
                 if (selectedRegionIndex < 0 || selectedRegionIndex >= currentRegion.size()) {
                     selectedRegionIndex = currentRegion.size() - 1;
                 }
+                currentRegion.forEach((region) -> RegionStoryClient.renderHint(context, region));
             }
-            currentRegion.forEach((region) -> RegionStoryClient.renderHint(context, region));
         });
     }
 
