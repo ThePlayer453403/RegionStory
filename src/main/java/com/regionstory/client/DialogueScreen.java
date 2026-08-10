@@ -24,7 +24,7 @@ public final class DialogueScreen extends Screen {
     private boolean hudVisible;
     private DialogueDefinition dialogue;
     private String entryId;
-    private int introTicks;
+    private int introTicks = 0;
     private boolean transitionStarted;
     private boolean serverClosing;
     private int selectedOption = -1;
@@ -33,7 +33,7 @@ public final class DialogueScreen extends Screen {
     private int hoverPulseTicks;
     private final List<int[]> optionRects = new ArrayList<>();
     private boolean typingAnimation = true;
-    private long typingStartTime;
+    private long typingStartTime = 0;
 
     public DialogueScreen(DialogueDefinition dialogue, String entryId) {
         super(Text.literal("RegionStory"));
@@ -41,6 +41,7 @@ public final class DialogueScreen extends Screen {
         this.entryId = entryId;
         this.hudVisible = MinecraftClient.getInstance().options.hudHidden;
         MinecraftClient.getInstance().options.hudHidden = true;
+        this.typingStartTime = System.currentTimeMillis();
     }
 
     @Override
@@ -49,8 +50,6 @@ public final class DialogueScreen extends Screen {
             CameraTransitionController.beginEnter(client);
             transitionStarted = true;
         }
-        introTicks = 0;
-        typingStartTime = System.currentTimeMillis();
     }
 
     @Override
@@ -96,6 +95,7 @@ public final class DialogueScreen extends Screen {
             this.hoveredOption = -1;
             this.hoverPulseTicks = 0;
             this.introTicks = 0;
+            this.typingStartTime = System.currentTimeMillis();
         }
     }
 

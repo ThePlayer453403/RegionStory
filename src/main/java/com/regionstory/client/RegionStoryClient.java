@@ -27,7 +27,7 @@ import java.util.Map;
 
 /** Client entry point for the region hint, key binding, and dialogue payloads. */
 public final class RegionStoryClient implements ClientModInitializer {
-    public static KeyBinding TALK_KEY;
+    public static final KeyBinding TALK_KEY = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.regionstory.talk", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F, KeyBinding.Category.create(RegionStoryMod.REGION_HINT)));
     public static List<String > currentRegion = new ArrayList<>();
     public static Map<String, String> currentPrompt = new HashMap<>();
     public static Map<String, String> currentIcon = new HashMap<>();
@@ -38,9 +38,6 @@ public final class RegionStoryClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         RegionStoryConfig.load();
-        TALK_KEY = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.regionstory.talk", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F,
-                KeyBinding.Category.create(RegionStoryMod.REGION_HINT)));
 
         ClientPlayNetworking.registerGlobalReceiver(RegionStoryMod.RegionHintPayload.ID, (payload, context) ->
                 context.client().execute(() -> {

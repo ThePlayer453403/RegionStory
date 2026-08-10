@@ -13,8 +13,6 @@ import java.util.Locale;
 
 /** Shared text and shader drawing helpers for the client UI. */
 public final class RegionStoryUi {
-    public static final Identifier FONT = Identifier.of("regionstory", "dialogue");
-
     private static final int SYMBOL_DIAMOND = 1;
     private static final int SYMBOL_ARROW = 2;
     private static final int SYMBOL_CHAT = 3;
