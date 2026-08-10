@@ -4,6 +4,7 @@ import com.regionstory.RegionStoryMod;
 import com.regionstory.client.ui.RegionStoryUiMetrics;
 import com.regionstory.client.ui.RegionStoryPipelineRenderer;
 import com.regionstory.data.DialogueDefinition;
+import com.tp4.genshinlib.client.GILText;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -20,16 +21,18 @@ import java.util.List;
 
 /** Dialogue screen. Shapes are shader-rendered; Minecraft TextRenderer remains the font backend. */
 public final class DialogueScreen extends Screen {
+    private final boolean hudVisible;
     private DialogueDefinition dialogue;
     private String entryId;
-    private int introTicks;
+    private int introTicks = 0;
     private boolean transitionStarted;
     private boolean serverClosing;
     private int selectedOption = -1;
     private int selectedOptionTicks;
+    public int keyboardSelectedOption = 0;
     private int hoveredOption = -1;
     private int hoverPulseTicks;
-    private final List<int[]> optionRects = new ArrayList<>();
+    public final List<int[]> optionRects = new ArrayList<>();
     private boolean typingAnimation = true;
     private long typingStartTime;
 
@@ -37,6 +40,9 @@ public final class DialogueScreen extends Screen {
         super(Text.literal("RegionStory"));
         this.dialogue = dialogue;
         this.entryId = entryId;
+        this.hudVisible = MinecraftClient.getInstance().options.hudHidden;
+        MinecraftClient.getInstance().options.hudHidden = true;
+        this.typingStartTime = System.currentTimeMillis();
     }
 
     @Override
@@ -45,8 +51,6 @@ public final class DialogueScreen extends Screen {
             CameraTransitionController.beginEnter(client);
             transitionStarted = true;
         }
-        introTicks = 0;
-        typingStartTime = System.currentTimeMillis();
     }
 
     @Override
@@ -90,8 +94,10 @@ public final class DialogueScreen extends Screen {
             this.selectedOption = -1;
             this.selectedOptionTicks = 0;
             this.hoveredOption = -1;
+            this.keyboardSelectedOption = 0;
             this.hoverPulseTicks = 0;
             this.introTicks = 0;
+            this.typingStartTime = System.currentTimeMillis();
         }
     }
 
@@ -103,6 +109,7 @@ public final class DialogueScreen extends Screen {
 
     @Override
     public void removed() {
+        MinecraftClient.getInstance().options.hudHidden = hudVisible;
         super.removed();
         if (!serverClosing) {
             CameraTransitionController.beginExit(client);
@@ -132,12 +139,12 @@ public final class DialogueScreen extends Screen {
         context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/dialogue_background.png"), 0, height - bandHeight, width, height, 0, 1, 0, 1);
         int centerX = width / 2;
         int speakerY = bandTop + 12;
-        drawCentered(context, entry.speaker(), centerX, speakerY, 0xFFFFD34F, 1.3f);
+        GILText.textRender(context, entry.speaker(), centerX, speakerY).color(0xffffd34f).center().scale(1.3f).render();
 
         int lineY = speakerY + 14;
         if (entry.speakerTitle() != null && !entry.speakerTitle().isBlank()) {
             drawTitleRule(context, centerX, lineY + 4, entry.speakerTitle());
-            drawCentered(context, entry.speakerTitle(), centerX, lineY, 0xFFE9B94F);
+            GILText.textRender(context, entry.speaker(), centerX, lineY).color(0xffe9b94f).center().render();
             lineY += 12;
         }
 
@@ -149,9 +156,9 @@ public final class DialogueScreen extends Screen {
 
         for (String line : dialogueLines) {
             if (typingCount >= line.length() || !typingAnimation) {
-                drawCentered(context, line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
+                GILText.textRender(context, line, centerX, bodyY).color(0xfff7f7f2).scale(1.3f).center().render();
             } else if (0 < typingCount) {
-                drawCentered(context, line.substring(0, typingCount), line, centerX, bodyY, 0xFFF7F7F2, 1.3f);
+                GILText.textRender(context, line.substring(0, typingCount), centerX, bodyY).color(0xfff7f7f2).scale(1.3f).center(line).render();
             }
             typingCount -= line.length();
             bodyY += RegionStoryUiMetrics.BODY_LINE_HEIGHT;
@@ -163,7 +170,9 @@ public final class DialogueScreen extends Screen {
             float intro = MathHelper.clamp(introTicks / (float) RegionStoryUiMetrics.INTRO_TICKS, 0.0F, 1.0F);
             optionRects.clear();
             if (entry.options().isEmpty()) {
-                RegionStoryUi.drawHoverDiamond(context, centerX, continuationY, 0xFFFFC52E);
+                GILText.textRender(context, "◇", centerX - 6, continuationY - 6).color(0xffffc52e).scale(1.5f).outline(false).render();
+                GILText.textRender(context, "◢", centerX, (float) (continuationY - 3.5 + Math.sin(System.currentTimeMillis() / 200d))).color(0xffffc52e).scale(0.7f).outline(false).rotate(45).render();
+
                 return;
             }
 
@@ -213,7 +222,7 @@ public final class DialogueScreen extends Screen {
                 int optionHeight = optionHeights.get(i);
                 optionRects.add(new int[]{optionX, optionY, optionW, optionHeight});
 
-                boolean hover = i == hoveredOption;
+                boolean hover = i == hoveredOption || i == keyboardSelectedOption;
                 // 从亮态开始，经暗态再回到亮态，循环提示当前可选项。
                 float hoverPulse = hover
                         ? 0.25F + 0.75F * (0.5F + 0.5F * (float) Math.cos(
@@ -227,7 +236,15 @@ public final class DialogueScreen extends Screen {
                 RegionStoryUi.drawOpenFadePanel(context, optionX, optionY, optionW, optionHeight, hover);
 
                 if (hover) {
-                    RegionStoryUi.drawTextScaled(context, textRenderer, "▶", 0.7f, 1f, (float) (optionX - 10 + Math.sin(System.currentTimeMillis() / 200d)), optionY + optionHeight / 3f, 0xffffffff);
+                    if (i == keyboardSelectedOption) {
+                        int keyX = optionX - 22;
+                        int keyY = optionY + 6;
+                        int keyTextHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
+                                * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE));
+                        context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/hint_key.png"), keyX - 4, (int) ((keyTextHeight + 2) * 0.1f + keyY - 2), keyX + keyTextHeight, (int) ((keyTextHeight + 2) * 0.9f + keyY),0, 1, 0, 1);
+                        GILText.textRender(context, "F", keyX, keyY).scale(RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE).color(0xff000000).outline(false).render();
+                    }
+                    GILText.textRender(context, "◢", (float) (optionX - 10 + Math.sin(System.currentTimeMillis() / 200d) - 1), optionY + 11).scale(0.8f).rotate(-45).outline(false).render();
                 }
 
                 RegionStoryUi.drawIcon(context, client, option.icon(),
@@ -242,11 +259,7 @@ public final class DialogueScreen extends Screen {
                 int textBlockHeight = optionLines.size() * textLineHeight;
                 float textY = optionY + (optionHeight - textBlockHeight) / 2f;
                 for (String line : optionLines) {
-                    RegionStoryUi.drawTextScaled(context, textRenderer, line,
-                            RegionStoryUiMetrics.OPTION_TEXT_SCALE,
-                            optionX + 24, textY,
-                            RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8,
-                                    0xFFFFF8C8, clickPulse));
+                    GILText.textRender(context, line, optionX + 24, textY).color(RegionStoryUi.blend(hover ? 0xFFFFFFFF : 0xFFF8F8F8, 0xFFFFF8C8, clickPulse)).scale(RegionStoryUiMetrics.OPTION_TEXT_SCALE).render();
                     textY += textLineHeight;
                 }
                 optionY += optionHeight + RegionStoryUiMetrics.OPTION_GAP;
@@ -254,22 +267,8 @@ public final class DialogueScreen extends Screen {
         }
     }
 
-    private void drawCentered(DrawContext context, String value, String fullValue, int centerX, int y, int color, float scale) {
-        int textWidth = (int) (RegionStoryUi.width(textRenderer, fullValue) * scale);
-        RegionStoryUi.drawTextScaled(context, textRenderer, value, scale,
-                centerX - textWidth / 2f, y, color);
-    }
-
-    private void drawCentered(DrawContext context, String value, int centerX, int y, int color, float scale) {
-        drawCentered(context, value, value, centerX, y, color, scale);
-    }
-
-    private void drawCentered(DrawContext context, String value, int centerX, int y, int color) {
-        drawCentered(context, value, centerX, y, color, 1);
-    }
-
     private void drawTitleRule(DrawContext context, int centerX, int y, String title) {
-        int titleWidth = RegionStoryUi.width(textRenderer, title);
+        int titleWidth = GILText.width(title);
         int gap = titleWidth / 2 + 13;
         int halfRule = Math.max(44, Math.min(150, gap + 38));
         int color = 0xD9D8A54A;
@@ -295,7 +294,7 @@ public final class DialogueScreen extends Screen {
                 continue;
             }
             String candidate = line + String.valueOf(character);
-            if (!line.isEmpty() && RegionStoryUi.width(textRenderer, candidate) > limit) {
+            if (!line.isEmpty() && GILText.width(candidate) * RegionStoryUiMetrics.OPTION_TEXT_SCALE > limit) {
                 lines.add(line.toString());
                 line.setLength(0);
             }
@@ -343,12 +342,32 @@ public final class DialogueScreen extends Screen {
             return true;
         }
         if (input.getKeycode() == 32 || input.getKeycode() == 70) {  // F或空格
-
             if (typingAnimation) {
                 typingAnimation = false;
                 return true;
             }
-
+        }
+        if (!optionRects.isEmpty()) {
+            if (input.getKeycode() == 70) {
+                selectedOption = keyboardSelectedOption;
+                selectedOptionTicks = 0;
+                if (MinecraftClient.getInstance().player != null) {
+                    MinecraftClient.getInstance().player.playSound(SoundEvents.ENTITY_ITEM_PICKUP);
+                }
+                return true;
+            } else if (input.getKeycode() == 83) {
+                keyboardSelectedOption ++;
+                if (keyboardSelectedOption >= optionRects.size()) {
+                    keyboardSelectedOption = 0;
+                }
+            } else if (input.getKeycode() == 87) {
+                keyboardSelectedOption --;
+                if (keyboardSelectedOption < 0) {
+                    keyboardSelectedOption = optionRects.size() - 1;
+                }
+            }
+        }
+        if (input.getKeycode() == 32 || input.getKeycode() == 70) {  // F或空格
             DialogueDefinition.Entry entry = dialogue.entry(entryId);
             if (entry != null && entry.options().isEmpty()) {
                 ClientPlayNetworkingBridge.advance(dialogue.id, entryId);

@@ -2,20 +2,14 @@ package com.regionstory.client;
 
 import com.regionstory.client.ui.RegionStoryPipelineRenderer;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Style;
-import net.minecraft.text.StyleSpriteSource;
-import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import java.util.Locale;
 
 /** Shared text and shader drawing helpers for the client UI. */
 public final class RegionStoryUi {
-    public static final Identifier FONT = Identifier.of("regionstory", "dialogue");
-
     private static final int SYMBOL_DIAMOND = 1;
     private static final int SYMBOL_ARROW = 2;
     private static final int SYMBOL_CHAT = 3;
@@ -28,30 +22,6 @@ public final class RegionStoryUi {
     private static final int SYMBOL_CHAT_DOTS = 10;
 
     private RegionStoryUi() {
-    }
-
-    public static Text text(String value) {
-        return Text.literal(value == null ? "" : value)
-                .setStyle(Style.EMPTY.withFont(new StyleSpriteSource.Font(FONT)));
-    }
-
-    public static int width(TextRenderer renderer, String value) {
-        return renderer.getWidth(text(value));
-    }
-
-    public static void drawTextScaled(DrawContext context, TextRenderer renderer,
-                                      String value, float scale, float x, float y, int color) {
-        drawTextScaled(context, renderer, value, scale, scale, x, y, color);
-    }
-
-    public static void drawTextScaled(DrawContext context, TextRenderer renderer,
-                                      String value, float scaleX, float scaleY, float x, float y, int color) {
-        if (scaleX <= 0.0F || scaleY <= 0.0F) return;
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(x, y);
-        context.getMatrices().scale(scaleX, scaleY);
-        context.drawTextWithShadow(renderer, text(value), 0, 0, color);
-        context.getMatrices().popMatrix();
     }
 
     /** Returns one complete original -> highlight -> original click pulse. */
@@ -71,14 +41,6 @@ public final class RegionStoryUi {
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
-    /** Full capsule: used for the standalone key cap and similar controls. */
-    public static void drawCapsule(DrawContext context, int x, int y, int w, int h,
-                                   int fill, int border) {
-        if (w <= 0 || h <= 0) return;
-        int blended = blend(fill, border, 0.14F);
-        RegionStoryPipelineRenderer.drawCapsule(context, x, y, w, h, blended);
-    }
-
     /** Open-ended panel: left semicircle, flat body, transparent right fade. */
     public static void drawOpenFadePanel(DrawContext context, int x, int y, int w, int h, boolean highlight) {
         context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/fade_panel_top.png"), x, y, (int) (x+h*0.5f), y+h,0, 1, 0, 1);
@@ -90,15 +52,6 @@ public final class RegionStoryUi {
         }
     }
 
-    public static void drawHoverDiamond(DrawContext context, int centerX, int centerY, int color) {
-        drawTextScaled(context, MinecraftClient.getInstance().textRenderer, "◇", 1.5f, centerX-6, centerY-6, color);
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(centerX + 0f, (float) (centerY - 3.5 + Math.sin(System.currentTimeMillis() / 200d)));
-        context.getMatrices().scale(0.7f);
-        context.getMatrices().rotate((float) Math.PI / 4);
-        context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, text("◢"), 0, 0, color);
-        context.getMatrices().popMatrix();
-    }
 
     public static void drawRule(DrawContext context, int x, int y, int width, int height,
                                 int color) {

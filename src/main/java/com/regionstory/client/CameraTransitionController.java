@@ -13,7 +13,7 @@ public final class CameraTransitionController {
     private enum Mode { IDLE, ENTERING, DIALOGUE, EXITING }
 
     private static Mode mode = Mode.IDLE;
-    private static int ticks;
+    private static long startTime;
     private static Perspective previousPerspective = Perspective.FIRST_PERSON;
 
     public static void beginEnter(MinecraftClient client) {
@@ -21,24 +21,23 @@ public final class CameraTransitionController {
             previousPerspective = client.options.getPerspective();
         }
         client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
-        ticks = 0;
+        startTime = System.currentTimeMillis();
         mode = Mode.ENTERING;
     }
 
     public static void beginExit(MinecraftClient client) {
         if (mode == Mode.IDLE) return;
-        ticks = 0;
+        startTime = System.currentTimeMillis();
         mode = Mode.EXITING;
         client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
     }
 
     public static void tick(MinecraftClient client) {
         if (mode == Mode.IDLE) return;
-        ticks++;
-        if (mode == Mode.ENTERING && ticks >= RegionStoryConfig.enterDuration) {
+        if (mode == Mode.ENTERING && getTicks() >= RegionStoryConfig.enterDuration) {
             mode = Mode.DIALOGUE;
         }
-        if (mode == Mode.EXITING && ticks >= RegionStoryConfig.exitDuration) {
+        if (mode == Mode.EXITING && getTicks() >= RegionStoryConfig.exitDuration) {
             client.options.setPerspective(previousPerspective);
             mode = Mode.IDLE;
         }
@@ -55,7 +54,7 @@ public final class CameraTransitionController {
     public static void reset(MinecraftClient client) {
         client.options.setPerspective(previousPerspective);
         mode = Mode.IDLE;
-        ticks = 0;
+        startTime = System.currentTimeMillis();
     }
 
     public static void apply(Camera camera, Entity focusedEntity) {
@@ -63,8 +62,8 @@ public final class CameraTransitionController {
 
         // 使用 smoothstep 让进入和退出的速度在首尾自然收敛，避免镜头突然加速。
         double progress = mode == Mode.EXITING
-                ? 1.0D - MathHelper.clamp(ticks / (double) RegionStoryConfig.exitDuration, 0.0D, 1.0D)
-                : MathHelper.clamp(ticks / (double) RegionStoryConfig.enterDuration, 0.0D, 1.0D);
+                ? 1.0D - MathHelper.clamp(getTicks() / (double) RegionStoryConfig.exitDuration, 0.0D, 1.0D)
+                : MathHelper.clamp(getTicks() / (double) RegionStoryConfig.enterDuration, 0.0D, 1.0D);
         double eased = progress * progress * (3.0D - 2.0D * progress);
         double distance = RegionStoryConfig.thirdPersonDistance * eased;
         // 从玩家的水平朝向构建局部坐标：正 yawOffset 永远是“玩家右后方”，
@@ -79,7 +78,7 @@ public final class CameraTransitionController {
         Vec3d right = new Vec3d(-horizontalForward.z, 0.0D, horizontalForward.x);
         double offset = Math.toRadians(RegionStoryConfig.yawOffset * eased);
         Vec3d cameraOffset = backward.multiply(Math.cos(offset) * distance)
-                .add(right.multiply(Math.sin(offset) * distance));
+                .add(right.multiply(Math.sin(offset) * distance)).add(backward.normalize().multiply(0.5));
         double x = focusedEntity.getX() + cameraOffset.x;
         double z = focusedEntity.getZ() + cameraOffset.z;
         double y = focusedEntity.getY() + focusedEntity.getStandingEyeHeight()
@@ -93,5 +92,9 @@ public final class CameraTransitionController {
     }
 
     private CameraTransitionController() {
+    }
+
+    private static float getTicks() {
+        return (System.currentTimeMillis() - startTime) / 50f;
     }
 }

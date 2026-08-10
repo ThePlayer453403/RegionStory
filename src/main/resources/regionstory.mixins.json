@@ -3,10 +3,10 @@
   "package": "com.regionstory.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "CameraMixin",
     "CameraAccessor",
-    "MouseMixin",
-    "HudMixin"
+    "CameraMixin",
+    "KeyBindingMixin",
+    "MouseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

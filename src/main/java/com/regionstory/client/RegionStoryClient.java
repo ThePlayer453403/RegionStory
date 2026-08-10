@@ -5,6 +5,7 @@ import com.regionstory.client.ui.RegionStoryPipelineRenderer;
 import com.regionstory.client.ui.RegionStoryUiMetrics;
 import com.regionstory.data.DialogueDefinition;
 import com.regionstory.data.DialogueManager;
+import com.tp4.genshinlib.client.GILText;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -26,7 +27,7 @@ import java.util.Map;
 
 /** Client entry point for the region hint, key binding, and dialogue payloads. */
 public final class RegionStoryClient implements ClientModInitializer {
-    public static KeyBinding TALK_KEY;
+    public static final KeyBinding TALK_KEY = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.regionstory.talk", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F, KeyBinding.Category.create(RegionStoryMod.REGION_HINT)));
     public static List<String > currentRegion = new ArrayList<>();
     public static Map<String, String> currentPrompt = new HashMap<>();
     public static Map<String, String> currentIcon = new HashMap<>();
@@ -37,9 +38,6 @@ public final class RegionStoryClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         RegionStoryConfig.load();
-        TALK_KEY = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.regionstory.talk", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F,
-                KeyBinding.Category.create(RegionStoryMod.REGION_HINT)));
 
         ClientPlayNetworking.registerGlobalReceiver(RegionStoryMod.RegionHintPayload.ID, (payload, context) ->
                 context.client().execute(() -> {
@@ -51,7 +49,6 @@ public final class RegionStoryClient implements ClientModInitializer {
                         currentPrompt.replace(payload.regionId(), payload.prompt());
                         currentIcon.replace(payload.regionId(), payload.icon());
                     }
-//                    hintClickTicks = 0;
                 }));
 
         ClientPlayNetworking.registerGlobalReceiver(RegionStoryMod.RemoveRegionHintPayload.ID, ((payload, context) ->
@@ -89,10 +86,12 @@ public final class RegionStoryClient implements ClientModInitializer {
         });
 
         HudRenderCallback.EVENT.register((context, tickCounter) -> {
-            if (selectedRegionIndex < 0 || selectedRegionIndex >= currentRegion.size()) {
-                selectedRegionIndex = currentRegion.size() - 1;
+            if (!MinecraftClient.getInstance().options.hudHidden) {
+                if (selectedRegionIndex < 0 || selectedRegionIndex >= currentRegion.size()) {
+                    selectedRegionIndex = currentRegion.size() - 1;
+                }
+                currentRegion.forEach((region) -> RegionStoryClient.renderHint(context, region));
             }
-            currentRegion.forEach((region) -> RegionStoryClient.renderHint(context, region));
         });
     }
 
@@ -144,35 +143,27 @@ public final class RegionStoryClient implements ClientModInitializer {
         int labelHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
                 * RegionStoryUiMetrics.HINT_TEXT_SCALE));
         float labelY = y + Math.max(1, (boxHeight - labelHeight) / 2f);
-        RegionStoryUi.drawTextScaled(context, client.textRenderer, label,
-                RegionStoryUiMetrics.HINT_TEXT_SCALE,
-                panelX + 30, labelY,
-                RegionStoryUi.blend(0xFFF6F2E7, 0xFFFFF7C5, 0));
+        GILText.textRender(context, label, panelX + 30, labelY).color(RegionStoryUi.blend(0xFFF6F2E7, 0xFFFFF7C5, 0)).scale(RegionStoryUiMetrics.HINT_TEXT_SCALE).render();
 
         if (selected) {
             int keyHeight = Math.min(RegionStoryUiMetrics.HINT_KEY_HEIGHT, boxHeight);
             int keyY = y + (boxHeight - keyHeight) / 2;
             // The white F key remains an independent control outside the prompt panel.
-            int keyTextWidth = RegionStoryUi.width(client.textRenderer, "F");
+            int keyTextWidth = GILText.width("F");
             int keyTextHeight = Math.max(1, Math.round(client.textRenderer.fontHeight
                     * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE));
             float keyTextX = x + (RegionStoryUiMetrics.HINT_KEY_WIDTH - keyTextWidth * RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE) / 2.0F - 10;
             float keyTextY = keyY + (keyHeight - keyTextHeight) / 2.0F + 1;
             context.drawTexturedQuad(Identifier.of("regionstory", "textures/gui/hint_key.png"), (int) keyTextX - 4, (int) ((keyTextHeight + 2) * 0.1f + keyTextY - 2), (int) keyTextX + keyTextHeight, (int) ((keyTextHeight + 2) * 0.9f + keyTextY),0, 1, 0, 1);
-            RegionStoryUi.drawTextScaled(context, client.textRenderer, "F",
-                    RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE,
-                    keyTextX,
-                    keyTextY,
-                    0xff000000);
-            RegionStoryUi.drawTextScaled(context, client.textRenderer, "▶", 0.7f, 1f, (float) (panelX - 10 + Math.sin(System.currentTimeMillis() / 200d)), labelY + 2, 0xffffffff);
-
+            GILText.textRender(context, "F", keyTextX, keyTextY).scale(RegionStoryUiMetrics.HINT_KEY_TEXT_SCALE).color(0xff000000).outline(false).render();
+            GILText.textRender(context, "◢", (float) (panelX - 10 + Math.sin(System.currentTimeMillis() / 200d) -1), labelY + 6).scale(0.8f).rotate(-45).outline(false).render();
         }
     }
 
     private static int[] hintBounds(MinecraftClient client, String region) {
         int width = client.getWindow().getScaledWidth();
         int height = client.getWindow().getScaledHeight();
-        int textWidth = Math.round(RegionStoryUi.width(client.textRenderer, hintLabel(region))
+        int textWidth = Math.round(GILText.width(hintLabel(region))
                 * RegionStoryUiMetrics.HINT_TEXT_SCALE);
         int maxPanelWidth = Math.max(96, width - RegionStoryUiMetrics.PANEL_MARGIN * 2
                 - RegionStoryUiMetrics.HINT_KEY_WIDTH - RegionStoryUiMetrics.HINT_KEY_GAP);
@@ -201,14 +192,14 @@ public final class RegionStoryClient implements ClientModInitializer {
 
     private static String displayHintLabel(MinecraftClient client, int maxWidth, String region) {
         String label = hintLabel(region);
-        int scaledWidth = Math.round(RegionStoryUi.width(client.textRenderer, label)
+        int scaledWidth = Math.round(GILText.width(label)
                 * RegionStoryUiMetrics.HINT_TEXT_SCALE);
         if (scaledWidth <= maxWidth) return label;
 
         String suffix = "...";
         String candidate = label;
         while (candidate.length() > 1
-                && Math.round(RegionStoryUi.width(client.textRenderer, candidate + suffix)
+                && Math.round(GILText.width(candidate + suffix)
                 * RegionStoryUiMetrics.HINT_TEXT_SCALE) > maxWidth) {
             candidate = candidate.substring(0, candidate.length() - 1);
         }
