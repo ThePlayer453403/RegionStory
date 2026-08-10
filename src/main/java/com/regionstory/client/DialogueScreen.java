@@ -34,7 +34,7 @@ public final class DialogueScreen extends Screen {
     private int hoverPulseTicks;
     public final List<int[]> optionRects = new ArrayList<>();
     private boolean typingAnimation = true;
-    private long typingStartTime = 0;
+    private long typingStartTime;
 
     public DialogueScreen(DialogueDefinition dialogue, String entryId) {
         super(Text.literal("RegionStory"));

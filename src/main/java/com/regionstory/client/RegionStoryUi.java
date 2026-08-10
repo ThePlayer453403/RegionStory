@@ -4,9 +4,6 @@ import com.regionstory.client.ui.RegionStoryPipelineRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Style;
-import net.minecraft.text.StyleSpriteSource;
-import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import java.util.Locale;
