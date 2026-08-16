@@ -22,19 +22,12 @@ public abstract class MouseMixin {
                 }
             } else if (vertical < 0) {
                 RegionStoryClient.selectedRegionIndex --;
+                if (RegionStoryClient.selectedRegionIndex < 0) {
+                    RegionStoryClient.selectedRegionIndex = RegionStoryClient.currentRegion.size() - 1;
+                }
             }
         } else if (MinecraftClient.getInstance().currentScreen instanceof DialogueScreen dialogueScreen) {
-            if (vertical > 0) {
-                dialogueScreen.keyboardSelectedOption ++;
-                if (dialogueScreen.keyboardSelectedOption >= dialogueScreen.optionRects.size()) {
-                    dialogueScreen.keyboardSelectedOption = 0;
-                }
-            } else if (vertical < 0) {
-                dialogueScreen.keyboardSelectedOption --;
-                if (dialogueScreen.keyboardSelectedOption < 0) {
-                    dialogueScreen.keyboardSelectedOption = dialogueScreen.optionRects.size() - 1;
-                }
-            }
+            dialogueScreen.keyboardSelectionChange(vertical);
         }
     }
 }
